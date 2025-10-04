@@ -172,18 +172,260 @@ function isTokenExpired(token) {
 	return new Date() > expiration;
 }
 
+/**
+ * Advanced Role-based Authorization Middleware
+ * Supports hierarchical permissions and resource-based access
+ */
+function createRoleMiddleware(permissions) {
+	return (req, res, next) => {
+		if (!req.user) {
+			return res.status(401).json({ 
+				error: 'Authentication required.',
+				code: 'AUTH_REQUIRED'
+			});
+		}
+
+		const userRole = req.user.role;
+		const resource = req.params.resource || req.route?.path || 'default';
+		const action = req.method.toLowerCase();
+
+		// Check if user has permission for this action on this resource
+		const hasPermission = checkPermission(userRole, resource, action, permissions);
+		
+		if (!hasPermission) {
+			return res.status(403).json({ 
+				error: 'Insufficient permissions for this action.',
+				code: 'INSUFFICIENT_PERMISSIONS',
+				required: `${action}:${resource}`,
+				userRole: userRole
+			});
+		}
+
+		next();
+	};
+}
+
+/**
+ * Check if user has specific permission
+ */
+function checkPermission(userRole, resource, action, permissions) {
+	// Admin has all permissions
+	if (userRole === 'admin') return true;
+
+	// Check role-specific permissions
+	const rolePermissions = permissions[userRole];
+	if (!rolePermissions) return false;
+
+	// Check resource-specific permissions
+	const resourcePermissions = rolePermissions[resource];
+	if (!resourcePermissions) return false;
+
+	// Check action permissions
+	return resourcePermissions.includes(action) || resourcePermissions.includes('*');
+}
+
+/**
+ * Session Management Middleware
+ * Handles session validation and refresh
+ */
+function sessionManagementMiddleware(req, res, next) {
+	// Check if session exists and is valid
+	if (req.session && req.session.user) {
+		// Validate session timestamp (8 hours max)
+		const sessionAge = Date.now() - (req.session.timestamp || 0);
+		const maxAge = 8 * 60 * 60 * 1000; // 8 hours
+
+		if (sessionAge > maxAge) {
+			req.session.destroy();
+			return res.status(401).json({
+				error: 'Session expired',
+				code: 'SESSION_EXPIRED'
+			});
+		}
+
+		// Update session timestamp
+		req.session.timestamp = Date.now();
+	}
+
+	next();
+}
+
+/**
+ * Rate Limiting Middleware
+ * Prevents abuse of authentication endpoints
+ */
+function createRateLimitMiddleware(maxAttempts = 5, windowMs = 15 * 60 * 1000) {
+	const attempts = new Map();
+
+	return (req, res, next) => {
+		const clientId = req.ip || req.connection.remoteAddress;
+		const now = Date.now();
+		
+		// Clean old attempts
+		if (attempts.has(clientId)) {
+			const clientAttempts = attempts.get(clientId);
+			clientAttempts.timestamps = clientAttempts.timestamps.filter(
+				timestamp => now - timestamp < windowMs
+			);
+			
+			if (clientAttempts.timestamps.length === 0) {
+				attempts.delete(clientId);
+			}
+		}
+
+		// Check current attempts
+		if (!attempts.has(clientId)) {
+			attempts.set(clientId, { timestamps: [] });
+		}
+
+		const clientAttempts = attempts.get(clientId);
+		
+		if (clientAttempts.timestamps.length >= maxAttempts) {
+			return res.status(429).json({
+				error: 'Too many authentication attempts',
+				code: 'RATE_LIMITED',
+				retryAfter: Math.ceil(windowMs / 1000)
+			});
+		}
+
+		// Add current attempt
+		clientAttempts.timestamps.push(now);
+		
+		next();
+	};
+}
+
+/**
+ * Multi-Factor Authentication Support
+ */
+function generateMFAToken(userId) {
+	const mfaToken = jwt.sign(
+		{ userId, type: 'mfa' },
+		JWT_SECRET,
+		{ expiresIn: '5m' }
+	);
+	return mfaToken;
+}
+
+function verifyMFAToken(token) {
+	try {
+		const decoded = jwt.verify(token, JWT_SECRET);
+		return decoded.type === 'mfa' ? decoded : null;
+	} catch (error) {
+		return null;
+	}
+}
+
+/**
+ * Device Management
+ */
+function generateDeviceToken(userId, deviceInfo) {
+	const deviceToken = jwt.sign(
+		{ 
+			userId, 
+			type: 'device',
+			deviceInfo: {
+				userAgent: deviceInfo.userAgent,
+				ip: deviceInfo.ip,
+				timestamp: Date.now()
+			}
+		},
+		JWT_SECRET,
+		{ expiresIn: '30d' }
+	);
+	return deviceToken;
+}
+
+/**
+ * Audit Logging for Authentication Events
+ */
+function logAuthEvent(event, userId, details, ip) {
+	const { logAudit } = require('./db');
+	logAudit('auth', userId, event, JSON.stringify({
+		...details,
+		ip,
+		timestamp: new Date().toISOString()
+	}), userId);
+}
+
+/**
+ * Enhanced Token Validation with Blacklist Support
+ */
+const tokenBlacklist = new Set();
+
+function blacklistToken(token) {
+	tokenBlacklist.add(token);
+	// Auto-remove after token expiration
+	setTimeout(() => {
+		tokenBlacklist.delete(token);
+	}, 24 * 60 * 60 * 1000); // 24 hours
+}
+
+function isTokenBlacklisted(token) {
+	return tokenBlacklist.has(token);
+}
+
+/**
+ * Enhanced JWT Middleware with Blacklist Check
+ */
+function enhancedJwtAuthMiddleware(req, res, next) {
+	const authHeader = req.headers.authorization;
+	const token = extractTokenFromHeader(authHeader);
+	
+	if (!token) {
+		return res.status(401).json({ 
+			error: 'Access denied. No token provided.',
+			code: 'NO_TOKEN'
+		});
+	}
+
+	// Check if token is blacklisted
+	if (isTokenBlacklisted(token)) {
+		return res.status(401).json({ 
+			error: 'Token has been revoked.',
+			code: 'TOKEN_REVOKED'
+		});
+	}
+	
+	const decoded = verifyToken(token);
+	if (!decoded) {
+		return res.status(401).json({ 
+			error: 'Invalid or expired token.',
+			code: 'INVALID_TOKEN'
+		});
+	}
+	
+	// Add user info to request object
+	req.user = decoded;
+	req.token = token;
+	next();
+}
+
 module.exports = {
 	generateToken,
 	verifyToken,
 	extractTokenFromHeader,
 	jwtAuthMiddleware,
+	enhancedJwtAuthMiddleware,
 	jwtRequireRole,
+	createRoleMiddleware,
+	sessionManagementMiddleware,
+	createRateLimitMiddleware,
 	refreshToken,
 	getTokenExpiration,
 	isTokenExpired,
+	generateMFAToken,
+	verifyMFAToken,
+	generateDeviceToken,
+	logAuthEvent,
+	blacklistToken,
+	isTokenBlacklisted,
 	JWT_SECRET,
 	JWT_EXPIRES_IN
 };
+
+
+
 
 
 

@@ -159,30 +159,6 @@ function seedOnce() {
 		insertItem.run('Vegetable Soup', 'Dinner', 'Vegan');
 		insertItem.run('Fruit Salad', 'Snack', 'Gluten-Free');
 	}
-
-	// Insert sample orders if none exist
-	const orderCount = db.prepare('SELECT COUNT(*) as c FROM orders').get().c;
-	if (orderCount === 0) {
-		// Get sample user, patient, and menu item IDs
-		const user = db.prepare('SELECT id FROM users WHERE username = ?').get('nurse1');
-		const patient1 = db.prepare('SELECT id FROM patients WHERE mrn = ?').get('MRN-001');
-		const patient2 = db.prepare('SELECT id FROM patients WHERE mrn = ?').get('MRN-002');
-		const oatmeal = db.prepare('SELECT id FROM menu_items WHERE name = ?').get('Oatmeal');
-		const chicken = db.prepare('SELECT id FROM menu_items WHERE name = ?').get('Grilled Chicken');
-		const soup = db.prepare('SELECT id FROM menu_items WHERE name = ?').get('Vegetable Soup');
-		const salad = db.prepare('SELECT id FROM menu_items WHERE name = ?').get('Fruit Salad');
-
-		if (user && patient1 && patient2 && oatmeal && chicken && soup && salad) {
-			const insertOrder = db.prepare('INSERT INTO orders (patient_id, item_id, special_instructions, status, created_at, updated_at, created_by) VALUES (?,?,?,?,?,?,?)');
-			const now = nowIso();
-			insertOrder.run(patient1.id, oatmeal.id, 'No sugar', 'placed', now, now, user.id);
-			insertOrder.run(patient1.id, chicken.id, '', 'in_kitchen', now, now, user.id);
-			insertOrder.run(patient2.id, soup.id, 'Extra hot', 'out_for_delivery', now, now, user.id);
-			insertOrder.run(patient2.id, salad.id, '', 'delivered', now, now, user.id);
-		} else {
-			console.warn('Sample order data not inserted: missing user, patient, or menu item IDs');
-		}
-	}
 }
 
 function logAudit(entity, entityId, action, details, userId) {
@@ -375,28 +351,6 @@ function replaceMenuWithIndian() {
 		// Then delete menu items
 		db.exec('DELETE FROM menu_items');
 		// Insert new menu items
-		for (const it of items) insert.run(it.name, it.category, it.dietary);
-	});
-	tx();
-}
-
-function replaceMenuWithHospital() {
-	const items = [
-		{ name: 'Oatmeal', category: 'Breakfast', dietary: 'Vegetarian' },
-		{ name: 'Scrambled Eggs', category: 'Breakfast', dietary: 'High Protein' },
-		{ name: 'Whole Wheat Toast', category: 'Breakfast', dietary: 'Vegetarian' },
-		{ name: 'Chicken Soup', category: 'Lunch', dietary: 'High Protein' },
-		{ name: 'Steamed Vegetables', category: 'Lunch', dietary: 'Vegan' },
-		{ name: 'Grilled Fish', category: 'Lunch', dietary: '' },
-		{ name: 'Rice Porridge', category: 'Dinner', dietary: 'Vegetarian, Light' },
-		{ name: 'Baked Potato', category: 'Dinner', dietary: 'Vegetarian' },
-		{ name: 'Fruit Salad', category: 'Snack', dietary: 'Gluten-Free' },
-		{ name: 'Yogurt', category: 'Snack', dietary: 'Vegetarian' }
-	];
-	const insert = db.prepare('INSERT INTO menu_items (name, category, dietary) VALUES (?,?,?)');
-	const tx = db.transaction(() => {
-		db.exec('DELETE FROM orders');
-		db.exec('DELETE FROM menu_items');
 		for (const it of items) insert.run(it.name, it.category, it.dietary);
 	});
 	tx();

@@ -10,9 +10,21 @@ const {
 	generateToken, 
 	verifyToken, 
 	jwtAuthMiddleware, 
+	enhancedJwtAuthMiddleware,
 	jwtRequireRole,
-	refreshToken 
+	createRoleMiddleware,
+	sessionManagementMiddleware,
+	createRateLimitMiddleware,
+	refreshToken,
+	logAuthEvent,
+	blacklistToken
 } = require('./auth');
+
+const RealtimeManager = require('./realtime');
+
+// Use MySQL if configured, otherwise use SQLite
+const USE_MYSQL = process.env.DB_TYPE === 'mysql' || process.env.DB_DRIVER === 'mysql';
+const dbModule = USE_MYSQL ? require('./db-mysql') : require('./db');
 
 const {
 	createOrder,
@@ -41,11 +53,14 @@ const {
 	getTiffinOrders,
 	getTiffinOrderById,
 	updateTiffinOrderStatus
-} = require('./db');
+} = dbModule;
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
+// Initialize Real-time Manager
+const realtimeManager = new RealtimeManager(server);
 
 const APP_PORT = Number(process.env.PORT) || 3000;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'change-me-in-prod';
@@ -58,14 +73,56 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use('/public', express.static(path.join(__dirname, '..', 'public')));
 
+// Enhanced session configuration
 app.use(
 	session({
 		secret: SESSION_SECRET,
 		resave: false,
 		saveUninitialized: false,
-		cookie: { maxAge: 1000 * 60 * 60 * 8 }
+		cookie: { 
+			maxAge: 1000 * 60 * 60 * 8, // 8 hours
+			secure: process.env.NODE_ENV === 'production',
+			httpOnly: true,
+			sameSite: 'strict'
+		}
 	})
 );
+
+// Add session management middleware
+app.use(sessionManagementMiddleware);
+
+// Role-based permissions configuration
+const rolePermissions = {
+	admin: {
+		'*': ['*'], // Admin has all permissions
+		orders: ['get', 'post', 'put', 'delete'],
+		patients: ['get', 'post', 'put', 'delete'],
+		menu: ['get', 'post', 'put', 'delete'],
+		reports: ['get', 'post'],
+		tiffin_orders: ['get', 'post', 'put', 'delete']
+	},
+	nurse: {
+		orders: ['get', 'post'],
+		patients: ['get'],
+		menu: ['get']
+	},
+	kitchen: {
+		orders: ['get', 'put'],
+		menu: ['get']
+	},
+	delivery: {
+		orders: ['get', 'put'],
+		menu: ['get']
+	},
+	receptionist: {
+		tiffin_orders: ['get', 'post', 'put', 'delete'],
+		patients: ['get'],
+		menu: ['get']
+	}
+};
+
+// Create role middleware
+const roleMiddleware = createRoleMiddleware(rolePermissions);
 
 function requireAuth(req, res, next) {
 	if (!req.session.user) return res.redirect('/login');
@@ -88,12 +145,20 @@ app.get('/login', (req, res) => {
 	res.render('login', { error: null, errorType: null, user: null });
 });
 
-app.post('/login/mess', (req, res) => {
+// Rate limiting for authentication endpoints
+const authRateLimit = createRateLimitMiddleware(5, 15 * 60 * 1000); // 5 attempts per 15 minutes
+
+app.get('/login', (req, res) => {
+	res.render('login', { error: null, errorType: null, user: null });
+});
+
+app.post('/login/mess', authRateLimit, async (req, res) => {
 	const { username, password } = req.body;
-	const user = getUserByUsername(username);
+	const user = await getUserByUsername(username);
 	
 	// Check if user exists and has mess owner role
 	if (!user || user.role !== 'admin') {
+		logAuthEvent('login_failed', null, { username, reason: 'invalid_role', userType: 'mess' }, req.ip);
 		return res.status(401).render('login', { 
 			error: 'Invalid credentials or insufficient privileges for mess owner', 
 			errorType: 'mess', 
@@ -102,6 +167,7 @@ app.post('/login/mess', (req, res) => {
 	}
 	
 	if (!bcrypt.compareSync(password, user.password_hash)) {
+		logAuthEvent('login_failed', user.id, { username, reason: 'invalid_password', userType: 'mess' }, req.ip);
 		return res.status(401).render('login', { 
 			error: 'Invalid credentials', 
 			errorType: 'mess', 
@@ -122,17 +188,19 @@ app.post('/login/mess', (req, res) => {
 	
 	req.session.user = userSession;
 	req.session.jwtToken = token; // Store JWT in session for web interface
+	req.session.timestamp = Date.now(); // Add timestamp for session management
 	
-	logAudit('auth', user.id, 'login', 'mess_owner', user.id);
+	logAuthEvent('login_success', user.id, { username, userType: 'mess' }, req.ip);
 	res.redirect('/dashboard');
 });
 
-app.post('/login/hospital', (req, res) => {
+app.post('/login/hospital', authRateLimit, async (req, res) => {
 	const { username, password } = req.body;
-	const user = getUserByUsername(username);
+	const user = await getUserByUsername(username);
 	
 	// Check if user exists and has hospital role (nurse, kitchen, delivery, receptionist)
 	if (!user || !['nurse', 'kitchen', 'delivery', 'receptionist'].includes(user.role)) {
+		logAuthEvent('login_failed', null, { username, reason: 'invalid_role', userType: 'hospital' }, req.ip);
 		return res.status(401).render('login', { 
 			error: 'Invalid credentials or insufficient privileges for hospital access', 
 			errorType: 'hospital', 
@@ -141,6 +209,7 @@ app.post('/login/hospital', (req, res) => {
 	}
 	
 	if (!bcrypt.compareSync(password, user.password_hash)) {
+		logAuthEvent('login_failed', user.id, { username, reason: 'invalid_password', userType: 'hospital' }, req.ip);
 		return res.status(401).render('login', { 
 			error: 'Invalid credentials', 
 			errorType: 'hospital', 
@@ -161,8 +230,9 @@ app.post('/login/hospital', (req, res) => {
 	
 	req.session.user = userSession;
 	req.session.jwtToken = token; // Store JWT in session for web interface
+	req.session.timestamp = Date.now(); // Add timestamp for session management
 	
-	logAudit('auth', user.id, 'login', user.role === 'receptionist' ? 'receptionist' : 'hospital', user.id);
+	logAuthEvent('login_success', user.id, { username, userType: 'hospital' }, req.ip);
 	res.redirect('/dashboard');
 });
 
@@ -171,7 +241,7 @@ app.post('/logout', requireAuth, (req, res) => {
 	req.session.destroy(() => res.redirect('/login'));
 });
 
-app.get('/dashboard', requireAuth, (req, res) => {
+app.get('/dashboard', requireAuth, async (req, res) => {
 	const role = req.session.user.role;
 	
 	if (role === 'receptionist') {
@@ -181,7 +251,7 @@ app.get('/dashboard', requireAuth, (req, res) => {
 			ward: req.query.ward || null,
 			orderDate: req.query.orderDate || null
 		};
-		const tiffinOrders = getTiffinOrders(filter);
+		const tiffinOrders = await getTiffinOrders(filter);
 		return res.render('receptionist_dashboard', {
 			user: req.session.user,
 			orders: tiffinOrders,
@@ -198,7 +268,7 @@ app.get('/dashboard', requireAuth, (req, res) => {
 	const filter = {};
 	if (role === 'kitchen') filter.status = 'placed';
 	if (role === 'delivery') filter.status = 'out_for_delivery';
-	const orders = getOrders(filter);
+	const orders = await getOrders(filter);
 	res.render('dashboard', {
 		user: req.session.user,
 		orders,
@@ -207,8 +277,8 @@ app.get('/dashboard', requireAuth, (req, res) => {
 });
 
 // Admin: Patient Management
-app.get('/admin/patients', requireAuth, requireRole(['admin']), (req, res) => {
-	const patients = getPatients();
+app.get('/admin/patients', requireAuth, requireRole(['admin']), async (req, res) => {
+	const patients = await getPatients();
 	res.render('patients_admin', { user: req.session.user, patients });
 });
 
@@ -216,94 +286,118 @@ app.get('/admin/patients/new', requireAuth, requireRole(['admin']), (req, res) =
 	res.render('patient_form', { user: req.session.user, patient: null, action: 'Create' });
 });
 
-app.post('/admin/patients/new', requireAuth, requireRole(['admin']), (req, res) => {
+app.post('/admin/patients/new', requireAuth, requireRole(['admin']), async (req, res) => {
 	const { full_name, room_number, dietary_restrictions, allergies } = req.body;
-	createPatient({ fullName: full_name, roomNumber: room_number, dietaryRestrictions: dietary_restrictions, allergies });
+	await createPatient({ fullName: full_name, roomNumber: room_number, dietaryRestrictions: dietary_restrictions, allergies });
 	res.redirect('/admin/patients');
 });
 
-app.get('/admin/patients/:id/edit', requireAuth, requireRole(['admin']), (req, res) => {
-	const patient = getPatientById(Number(req.params.id));
+app.get('/admin/patients/:id/edit', requireAuth, requireRole(['admin']), async (req, res) => {
+	const patient = await getPatientById(Number(req.params.id));
 	if (!patient) return res.status(404).send('Not found');
 	res.render('patient_form', { user: req.session.user, patient, action: 'Update' });
 });
 
-app.post('/admin/patients/:id/edit', requireAuth, requireRole(['admin']), (req, res) => {
+app.post('/admin/patients/:id/edit', requireAuth, requireRole(['admin']), async (req, res) => {
 	const { full_name, room_number, dietary_restrictions, allergies } = req.body;
-	updatePatient(Number(req.params.id), { fullName: full_name, roomNumber: room_number, dietaryRestrictions: dietary_restrictions, allergies });
+	await updatePatient(Number(req.params.id), { fullName: full_name, roomNumber: room_number, dietaryRestrictions: dietary_restrictions, allergies });
 	res.redirect('/admin/patients');
 });
 
-app.post('/admin/patients/:id/delete', requireAuth, requireRole(['admin']), (req, res) => {
-	deletePatient(Number(req.params.id));
+app.post('/admin/patients/:id/delete', requireAuth, requireRole(['admin']), async (req, res) => {
+	await deletePatient(Number(req.params.id));
 	res.redirect('/admin/patients');
 });
 
-app.get('/orders', requireAuth, (req, res) => {
-	const orders = getOrders({ status: req.query.status || null, ward: req.query.ward || null });
-	const patients = getPatients();
-	const menu = getMenu();
+app.get('/orders', requireAuth, async (req, res) => {
+	const orders = await getOrders({ status: req.query.status || null, ward: req.query.ward || null });
+	const patients = await getPatients();
+	const menu = await getMenu();
 	res.render('orders', { user: req.session.user, orders, dayjs, patients, menu });
 });
 
-app.post('/orders', requireAuth, requireRole(['nurse','admin']), (req, res) => {
+app.post('/orders', requireAuth, requireRole(['nurse','admin']), async (req, res) => {
 	const { patient_id, item_id, special_instructions } = req.body;
-	const orderId = createOrder({
+	const orderId = await createOrder({
 		patientId: Number(patient_id),
 		itemId: Number(item_id),
 		specialInstructions: special_instructions,
 		userId: req.session.user.id
 	});
-	const order = getOrderById(orderId);
-	io.emit('orders:updated', { type: 'created', orderId, order });
+	const order = await getOrderById(orderId);
+	
+	// Broadcast real-time order creation
+	realtimeManager.broadcastOrderCreated(order);
+	
+	// Emit to specific rooms
+	realtimeManager.io.to(realtimeManager.rooms.kitchen).emit('new-order-kitchen', order);
+	
 	res.redirect('/orders');
 });
 
-app.post('/orders/:id/status', requireAuth, requireRole(['kitchen','delivery','admin']), (req, res) => {
+app.post('/orders/:id/status', requireAuth, requireRole(['kitchen','delivery','admin']), async (req, res) => {
 	const { id } = req.params;
 	const { status } = req.body;
-	updateOrderStatus(Number(id), status, req.session.user.id);
-	const order = getOrderById(Number(id));
-	io.emit('orders:updated', { type: 'status', orderId: Number(id), status, order });
+	await updateOrderStatus(Number(id), status, req.session.user.id);
+	const order = await getOrderById(Number(id));
+	
+	// Broadcast real-time status update
+	realtimeManager.io.to(realtimeManager.rooms.orders).emit('order-status-updated', {
+		orderId: Number(id),
+		status,
+		order,
+		updatedBy: req.session.user,
+		timestamp: new Date().toISOString()
+	});
+	
+	// Emit to specific role rooms based on status
+	if (status === 'in_kitchen') {
+		realtimeManager.io.to(realtimeManager.rooms.kitchen).emit('order-assigned-kitchen', order);
+	} else if (status === 'out_for_delivery') {
+		realtimeManager.io.to(realtimeManager.rooms.delivery).emit('order-ready-delivery', order);
+	} else if (status === 'delivered') {
+		realtimeManager.io.to(realtimeManager.rooms.nurse).emit('order-delivered', order);
+	}
+	
 	res.redirect('/orders');
 });
 
 // Delivery marks consumption (eaten/partial/refused)
-app.post('/orders/:id/consumption', requireAuth, requireRole(['delivery','admin']), (req, res) => {
+app.post('/orders/:id/consumption', requireAuth, requireRole(['delivery','admin']), async (req, res) => {
 	const { id } = req.params;
 	const { consumption_status } = req.body;
 	const allowed = ['eaten','partial','refused'];
 	const status = allowed.includes(consumption_status) ? consumption_status : 'unknown';
-	updateOrderConsumption(Number(id), status, req.session.user.id);
-	const order = getOrderById(Number(id));
+	await updateOrderConsumption(Number(id), status, req.session.user.id);
+	const order = await getOrderById(Number(id));
 	io.emit('orders:updated', { type: 'consumption', orderId: Number(id), consumption_status: status, order });
 	res.redirect('/orders');
 });
 
-app.get('/menu', requireAuth, (req, res) => {
-	const menu = getMenu();
+app.get('/menu', requireAuth, async (req, res) => {
+	const menu = await getMenu();
 	res.render('menu', { user: req.session.user, menu });
 });
 
 // Reports & Analytics (Admin)
-app.get('/admin/reports', requireAuth, requireRole(['admin']), (req, res) => {
+app.get('/admin/reports', requireAuth, requireRole(['admin']), async (req, res) => {
 	const days = Number(req.query.days) || 14;
 	const weeks = Number(req.query.weeks) || 8;
-	const daily = getDailyMealCounts(days);
-	const weekly = getWeeklyMealCounts(weeks);
-	const topDishes = getMostRequestedDishes(10);
-	const byDiet = getOrdersByDietaryRestriction();
-	const wasteByWardDaily = getWasteByWardDaily(days);
+	const daily = await getDailyMealCounts(days);
+	const weekly = await getWeeklyMealCounts(weeks);
+	const topDishes = await getMostRequestedDishes(10);
+	const byDiet = await getOrdersByDietaryRestriction();
+	const wasteByWardDaily = await getWasteByWardDaily(days);
 	res.render('reports', { user: req.session.user, daily, weekly, topDishes, byDiet, wasteByWardDaily });
 });
 
 // CSV export
-app.get('/admin/reports/export.csv', requireAuth, requireRole(['admin']), (req, res) => {
-	const daily = getDailyMealCounts(30);
-	const weekly = getWeeklyMealCounts(12);
-	const topDishes = getMostRequestedDishes(25);
-	const byDiet = getOrdersByDietaryRestriction();
-	const waste = getWasteByWardDaily(30);
+app.get('/admin/reports/export.csv', requireAuth, requireRole(['admin']), async (req, res) => {
+	const daily = await getDailyMealCounts(30);
+	const weekly = await getWeeklyMealCounts(12);
+	const topDishes = await getMostRequestedDishes(25);
+	const byDiet = await getOrdersByDietaryRestriction();
+	const waste = await getWasteByWardDaily(30);
 
 	let csv = 'Section,Label,Count\n';
 	for (const r of daily) csv += `Daily,${r.day},${r.count}\n`;
@@ -328,11 +422,11 @@ app.get('/admin/reports/export.pdf', requireAuth, requireRole(['admin']), async 
 	doc.fontSize(18).text('Hospital Meals - Reports', { align: 'center' });
 	doc.moveDown();
 
-	const daily = getDailyMealCounts(14);
-	const weekly = getWeeklyMealCounts(8);
-	const topDishes = getMostRequestedDishes(10);
-	const byDiet = getOrdersByDietaryRestriction();
-	const waste = getWasteByWardDaily(14);
+	const daily = await getDailyMealCounts(14);
+	const weekly = await getWeeklyMealCounts(8);
+	const topDishes = await getMostRequestedDishes(10);
+	const byDiet = await getOrdersByDietaryRestriction();
+	const waste = await getWasteByWardDaily(14);
 
 	function table(items, headers) {
 		doc.moveDown(0.5);
@@ -378,11 +472,11 @@ app.get('/admin/reports/export.xlsx', requireAuth, requireRole(['admin']), async
 		return ws;
 	}
 
-	const daily = getDailyMealCounts(30);
-	const weekly = getWeeklyMealCounts(12);
-	const topDishes = getMostRequestedDishes(25);
-	const byDiet = getOrdersByDietaryRestriction();
-	const waste = getWasteByWardDaily(30);
+	const daily = await getDailyMealCounts(30);
+	const weekly = await getWeeklyMealCounts(12);
+	const topDishes = await getMostRequestedDishes(25);
+	const byDiet = await getOrdersByDietaryRestriction();
+	const waste = await getWasteByWardDaily(30);
 
 	sheetFrom('Daily', [{label:'Day',key:'day'},{label:'Count',key:'count'}], daily);
 	sheetFrom('Weekly', [{label:'Week',key:'week'},{label:'Count',key:'count'}], weekly);
@@ -396,20 +490,20 @@ app.get('/admin/reports/export.xlsx', requireAuth, requireRole(['admin']), async
 	res.end();
 });
 
-app.post('/admin/menu/indian', requireAuth, requireRole(['admin']), (req, res) => {
-	replaceMenuWithIndian();
+app.post('/admin/menu/indian', requireAuth, requireRole(['admin']), async (req, res) => {
+	await replaceMenuWithIndian();
 	io.emit('orders:updated', { type: 'menu_reloaded' });
 	res.redirect('/menu');
 });
 
 // Tiffin Order Management - Receptionist Dashboard
-app.get('/receptionist/tiffin-orders', requireAuth, requireRole(['receptionist', 'admin']), (req, res) => {
+app.get('/receptionist/tiffin-orders', requireAuth, requireRole(['receptionist', 'admin']), async (req, res) => {
 	const filter = {
 		status: req.query.status || null,
 		ward: req.query.ward || null,
 		orderDate: req.query.orderDate || null
 	};
-	const orders = getTiffinOrders(filter);
+	const orders = await getTiffinOrders(filter);
 	res.render('tiffin_orders', { 
 		user: req.session.user, 
 		orders, 
@@ -426,9 +520,9 @@ app.get('/receptionist/tiffin-orders/new', requireAuth, requireRole(['receptioni
 	res.render('tiffin_order_form', { user: req.session.user, order: null, action: 'Create' });
 });
 
-app.post('/receptionist/tiffin-orders/new', requireAuth, requireRole(['receptionist', 'admin']), (req, res) => {
+app.post('/receptionist/tiffin-orders/new', requireAuth, requireRole(['receptionist', 'admin']), async (req, res) => {
 	const { patient_name, ward, food_type, quantity, order_date, notes } = req.body;
-	createTiffinOrder({
+	await createTiffinOrder({
 		patientName: patient_name,
 		ward: ward,
 		foodType: food_type,
@@ -440,15 +534,15 @@ app.post('/receptionist/tiffin-orders/new', requireAuth, requireRole(['reception
 	res.redirect('/receptionist/tiffin-orders');
 });
 
-app.get('/receptionist/tiffin-orders/:id/edit', requireAuth, requireRole(['receptionist', 'admin']), (req, res) => {
-	const order = getTiffinOrderById(Number(req.params.id));
+app.get('/receptionist/tiffin-orders/:id/edit', requireAuth, requireRole(['receptionist', 'admin']), async (req, res) => {
+	const order = await getTiffinOrderById(Number(req.params.id));
 	if (!order) return res.status(404).send('Order not found');
 	res.render('tiffin_order_form', { user: req.session.user, order, action: 'Update' });
 });
 
-app.post('/receptionist/tiffin-orders/:id/edit', requireAuth, requireRole(['receptionist', 'admin']), (req, res) => {
+app.post('/receptionist/tiffin-orders/:id/edit', requireAuth, requireRole(['receptionist', 'admin']), async (req, res) => {
 	const { patient_name, ward, food_type, quantity, order_date, notes, status } = req.body;
-	updateTiffinOrder(Number(req.params.id), {
+	await updateTiffinOrder(Number(req.params.id), {
 		patientName: patient_name,
 		ward: ward,
 		foodType: food_type,
@@ -460,15 +554,15 @@ app.post('/receptionist/tiffin-orders/:id/edit', requireAuth, requireRole(['rece
 	res.redirect('/receptionist/tiffin-orders');
 });
 
-app.post('/receptionist/tiffin-orders/:id/delete', requireAuth, requireRole(['receptionist', 'admin']), (req, res) => {
-	deleteTiffinOrder(Number(req.params.id));
+app.post('/receptionist/tiffin-orders/:id/delete', requireAuth, requireRole(['receptionist', 'admin']), async (req, res) => {
+	await deleteTiffinOrder(Number(req.params.id));
 	res.redirect('/receptionist/tiffin-orders');
 });
 
-app.post('/receptionist/tiffin-orders/:id/status', requireAuth, requireRole(['receptionist', 'admin']), (req, res) => {
+app.post('/receptionist/tiffin-orders/:id/status', requireAuth, requireRole(['receptionist', 'admin']), async (req, res) => {
 	const { id } = req.params;
 	const { status } = req.body;
-	updateTiffinOrderStatus(Number(id), status, req.session.user.id);
+	await updateTiffinOrderStatus(Number(id), status, req.session.user.id);
 	res.redirect('/receptionist/tiffin-orders');
 });
 
@@ -659,18 +753,182 @@ app.get('/patients', requireAuth, (req, res) => {
 	res.json(patients);
 });
 
+// Legacy WebSocket connection handler (kept for compatibility)
 io.on('connection', () => {});
 
-server.listen(APP_PORT, () => {
-	console.log(`🚀 Server running on http://localhost:${APP_PORT}`);
-	console.log(`📊 Connected to SQLite database: hospital_meals.sqlite`);
-	console.log(`🔐 JWT Authentication enabled`);
-	console.log(`🍱 Receptionist Dashboard available`);
-	console.log(`\n🔑 Login Credentials:`);
-	console.log(`   Admin: messowner / mess123`);
-	console.log(`   Admin: admin / admin123`);
-	console.log(`   Nurse: nurse1 / nurse123`);
-	console.log(`   Kitchen: kitchen1 / kitchen123`);
-	console.log(`   Delivery: delivery1 / delivery123`);
-	console.log(`   Receptionist: receptionist1 / reception123`);
+// Enhanced Authentication API Endpoints
+app.post('/api/auth/logout', enhancedJwtAuthMiddleware, (req, res) => {
+	// Blacklist the token
+	blacklistToken(req.token);
+	
+	logAuthEvent('api_logout', req.user.id, { username: req.user.username }, req.ip);
+	res.json({
+		success: true,
+		message: 'Logged out successfully'
+	});
 });
+
+// Token refresh endpoint
+app.post('/api/auth/refresh', enhancedJwtAuthMiddleware, (req, res) => {
+	try {
+		const result = refreshToken(req.token);
+		
+		// Blacklist old token
+		blacklistToken(req.token);
+		
+		res.json({
+			success: true,
+			token: result.token,
+			user: result.user,
+			expiresIn: '24h'
+		});
+	} catch (error) {
+		res.status(401).json({
+			error: 'Token refresh failed',
+			code: 'REFRESH_FAILED'
+		});
+	}
+});
+
+// Real-time API endpoints
+app.get('/api/realtime/status', enhancedJwtAuthMiddleware, (req, res) => {
+	const connectedUsers = realtimeManager.getConnectedUsers();
+	const userCounts = realtimeManager.getConnectedUsersCount();
+	
+	res.json({
+		success: true,
+		connectedUsers: connectedUsers.length,
+		userCounts,
+		rooms: Object.keys(realtimeManager.rooms)
+	});
+});
+
+app.post('/api/realtime/broadcast', enhancedJwtAuthMiddleware, jwtRequireRole(['admin']), (req, res) => {
+	const { message, type, targetRoles } = req.body;
+	
+	if (!message) {
+		return res.status(400).json({
+			error: 'Message is required',
+			code: 'MISSING_MESSAGE'
+		});
+	}
+	
+	realtimeManager.broadcastSystemNotification(message, type || 'info', targetRoles || []);
+	
+	res.json({
+		success: true,
+		message: 'Notification broadcasted successfully'
+	});
+});
+
+// Emergency notification endpoint
+app.post('/api/realtime/emergency', enhancedJwtAuthMiddleware, (req, res) => {
+	const { type, message, priority, orderId } = req.body;
+	
+	if (!message) {
+		return res.status(400).json({
+			error: 'Message is required',
+			code: 'MISSING_MESSAGE'
+		});
+	}
+	
+	const notification = {
+		id: Date.now(),
+		type: type || 'emergency',
+		message,
+		priority: priority || 'high',
+		orderId,
+		sender: req.user,
+		timestamp: new Date().toISOString()
+	};
+	
+	// Broadcast emergency notification
+	realtimeManager.io.emit('emergency-notification', notification);
+	realtimeManager.io.to(realtimeManager.rooms.admin).emit('admin-alert', notification);
+	
+	logAuthEvent('emergency_notification', req.user.id, notification, req.ip);
+	
+	res.json({
+		success: true,
+		notification,
+		message: 'Emergency notification sent successfully'
+	});
+});
+
+// Device management endpoints
+app.post('/api/auth/device/register', enhancedJwtAuthMiddleware, (req, res) => {
+	const { generateDeviceToken } = require('./auth');
+	const deviceInfo = {
+		userAgent: req.headers['user-agent'],
+		ip: req.ip
+	};
+	
+	const deviceToken = generateDeviceToken(req.user.id, deviceInfo);
+	
+	res.json({
+		success: true,
+		deviceToken,
+		expiresIn: '30d'
+	});
+});
+
+// Session management endpoints
+app.get('/api/auth/session/status', requireAuth, (req, res) => {
+	const sessionAge = Date.now() - (req.session.timestamp || 0);
+	const maxAge = 8 * 60 * 60 * 1000; // 8 hours
+	const remainingTime = maxAge - sessionAge;
+	
+	res.json({
+		success: true,
+		session: {
+			user: req.session.user,
+			age: sessionAge,
+			remainingTime,
+			isValid: remainingTime > 0
+		}
+	});
+});
+
+app.post('/api/auth/session/refresh', requireAuth, (req, res) => {
+	req.session.timestamp = Date.now();
+	res.json({
+		success: true,
+		message: 'Session refreshed successfully'
+	});
+});
+
+// Initialize database if using MySQL
+(async () => {
+	if (USE_MYSQL && dbModule.init) {
+		try {
+			await dbModule.init();
+			console.log('✅ MySQL database initialized');
+		} catch (error) {
+			console.error('❌ MySQL initialization failed:', error.message);
+			process.exit(1);
+		}
+	}
+	
+	server.listen(APP_PORT, () => {
+		console.log(`🚀 Server running on http://localhost:${APP_PORT}`);
+		console.log(`📊 Database: ${USE_MYSQL ? 'MySQL (hospital_meals)' : 'SQLite (hospital_meals.sqlite)'}`);
+		console.log(`🔐 Enhanced JWT Authentication enabled`);
+		console.log(`⚡ Real-time WebSocket system active`);
+		console.log(`🍱 Receptionist Dashboard available`);
+		console.log(`🔒 Rate limiting and session management enabled`);
+		console.log(`📡 Real-time notifications and emergency alerts ready`);
+		console.log(`\n🔑 Login Credentials:`);
+		console.log(`   Admin: messowner / mess123`);
+		console.log(`   Admin: admin / admin123`);
+		console.log(`   Nurse: nurse1 / nurse123`);
+		console.log(`   Kitchen: kitchen1 / kitchen123`);
+		console.log(`   Delivery: delivery1 / delivery123`);
+		console.log(`   Receptionist: receptionist1 / reception123`);
+		console.log(`\n📡 Real-time Features:`);
+		console.log(`   - Role-based WebSocket rooms`);
+		console.log(`   - Live order status updates`);
+		console.log(`   - Emergency notifications`);
+		console.log(`   - Delivery location tracking`);
+		console.log(`   - System-wide broadcasts`);
+	});
+})();

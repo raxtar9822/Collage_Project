@@ -1,0 +1,75 @@
+:root {
+    --primary-color: #e0f7fa; /* Soft blue for backgrounds */
+    --secondary-color: #b2ebf2; /* Lighter blue for accents */
+    --text-color: #004d40; /* Dark teal for text */
+    --urgent-color: #f44336; /* Red for urgent tags */
+    --dietary-color: #ffeb3b; /* Yellow for dietary restriction tags */
+    --card-background: #ffffff; /* White for card backgrounds */
+    --border-radius: 8px; /* Rounded corners for cards */
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 0;
+}
+
+h1, h2, h3 {
+    color: var(--text-color);
+}
+
+.card {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin: 16px;
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: scale(1.02);
+}
+
+.priority-tag {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: var(--border-radius);
+    color: #fff;
+    font-weight: bold;
+}
+
+.priority-tag.urgent {
+    background-color: var(--urgent-color);
+}
+
+.priority-tag.dietary {
+    background-color: var(--dietary-color);
+}
+
+.stats-card {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin: 16px;
+    text-align: center;
+}
+
+.mini-map {
+    width: 100%;
+    height: 300px;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    margin: 16px 0;
+}
+
+.animated-progress {
+    height: 4px;
+    background-color: var(--secondary-color);
+    border-radius: var(--border-radius);
+    transition: width 0.5s ease;
+}
