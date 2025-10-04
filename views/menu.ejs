@@ -1,0 +1,31 @@
+<% const title = 'Menu'; %>
+<div class="card">
+	<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+		<h2>Menu Items</h2>
+		<% if (user && user.role === 'admin') { %>
+		<form method="post" action="/admin/menu/indian" onsubmit="return confirm('Replace current menu with curated Indian dishes?')">
+			<button type="submit">Load Indian Menu</button>
+		</form>
+		<% } %>
+	</div>
+	<table>
+		<thead>
+			<tr>
+				<th>ID</th>
+				<th>Name</th>
+				<th>Category</th>
+				<th>Dietary</th>
+			</tr>
+		</thead>
+		<tbody>
+			<% menu.forEach(m => { %>
+			<tr>
+				<td><%= m.id %></td>
+				<td><%= m.name %></td>
+				<td><%= m.category %></td>
+				<td><%= m.dietary %></td>
+			</tr>
+			<% }) %>
+		</tbody>
+	</table>
+</div>

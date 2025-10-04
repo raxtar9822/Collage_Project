@@ -1,0 +1,20 @@
+<% const title = (action === 'Create' ? 'New' : 'Edit') + ' Patient'; %>
+<div class="card">
+	<h2><%= action %> Patient</h2>
+	<form method="post">
+		<label>Full Name
+			<input name="full_name" value="<%= patient ? patient.full_name : '' %>" required />
+		</label>
+		<label>Room Number
+			<input name="room_number" value="<%= patient ? patient.room_number : '' %>" />
+		</label>
+		<label>Dietary Restrictions
+			<input name="dietary_restrictions" value="<%= patient ? (patient.dietary_restrictions || '') : '' %>" />
+		</label>
+		<label>Known Allergies
+			<input name="allergies" value="<%= patient ? (patient.allergies || '') : '' %>" />
+		</label>
+		<button type="submit"><%= action %></button>
+		<a href="/admin/patients"><button type="button">Cancel</button></a>
+	</form>
+</div> 

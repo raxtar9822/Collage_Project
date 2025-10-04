@@ -1,0 +1,90 @@
+<% const title = 'Orders'; %>
+<div class="grid">
+	<div class="card">
+		<h2>All Orders</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>ID</th>
+					<th>Patient</th>
+					<th>Room</th>
+					<th>Dietary / Allergies</th>
+					<th>Item</th>
+					<th>Status</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				<% orders.forEach(o => { %>
+				<tr>
+					<td><%= o.id %></td>
+					<td><%= o.patient_name %></td>
+					<td><%= o.room_number || '' %></td>
+					<td><%= (o.dietary_restrictions || '') %><% if (o.allergies) { %> / <strong><%= o.allergies %></strong><% } %></td>
+					<td><%= o.item_name %></td>
+					<td><%= o.status %></td>
+					<td>
+						<% if (['kitchen','admin'].includes(user.role) && o.status === 'placed') { %>
+						<form method="post" action="/orders/<%= o.id %>/status" style="display:inline">
+							<input type="hidden" name="status" value="in_kitchen" />
+							<button>Start</button>
+						</form>
+						<% } %>
+						<% if (['kitchen','admin'].includes(user.role) && o.status === 'in_kitchen') { %>
+						<form method="post" action="/orders/<%= o.id %>/status" style="display:inline">
+							<input type="hidden" name="status" value="out_for_delivery" />
+							<button>Send</button>
+						</form>
+						<% } %>
+						<% if (['delivery','admin'].includes(user.role) && o.status === 'out_for_delivery') { %>
+						<form method="post" action="/orders/<%= o.id %>/status" style="display:inline">
+							<input type="hidden" name="status" value="delivered" />
+							<button>Delivered</button>
+						</form>
+						<% } %>
+						<% if (['delivery','admin'].includes(user.role) && o.status === 'delivered') { %>
+						<form method="post" action="/orders/<%= o.id %>/consumption" style="display:inline;margin-left:6px">
+							<select name="consumption_status" required>
+								<option value="" disabled selected>Consumption...</option>
+								<option value="eaten">Eaten</option>
+								<option value="partial">Partial</option>
+								<option value="refused">Refused</option>
+							</select>
+							<button style="margin-left:6px">Save</button>
+						</form>
+						<% } %>
+					</td>
+				</tr>
+				<% }) %>
+			</tbody>
+		</table>
+	</div>
+
+	<% if (['nurse','admin'].includes(user.role)) { %>
+	<div class="card">
+		<h2>Create Order</h2>
+		<form method="post" action="/orders">
+			<label>Patient
+				<select name="patient_id" required>
+					<option value="" disabled selected>Select patient</option>
+					<% patients.forEach(p => { %>
+					<option value="<%= p.id %>"><%= p.full_name %> - Room <%= p.room_number || 'N/A' %><% if (p.dietary_restrictions) { %> - <%= p.dietary_restrictions %><% } %><% if (p.allergies) { %> - A:<%= p.allergies %><% } %></option>
+					<% }) %>
+				</select>
+			</label>
+			<label>Menu Item
+				<select name="item_id" required>
+					<option value="" disabled selected>Select item</option>
+					<% menu.forEach(m => { %>
+					<option value="<%= m.id %>"><%= m.name %> (<%= m.category %>)</option>
+					<% }) %>
+				</select>
+			</label>
+			<label>Instructions
+				<textarea name="special_instructions" rows="2"></textarea>
+			</label>
+			<button type="submit">Place Order</button>
+		</form>
+	</div>
+	<% } %>
+</div>

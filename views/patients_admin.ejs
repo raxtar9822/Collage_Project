@@ -1,0 +1,34 @@
+<% const title = 'Manage Patients'; %>
+<div class="card">
+	<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+		<h2>Patients</h2>
+		<a href="/admin/patients/new"><button>New Patient</button></a>
+	</div>
+	<table>
+		<thead>
+			<tr>
+				<th>Name</th>
+				<th>Room</th>
+				<th>Dietary</th>
+				<th>Allergies</th>
+				<th>Actions</th>
+			</tr>
+		</thead>
+		<tbody>
+			<% patients.forEach(p => { %>
+			<tr>
+				<td><%= p.full_name %></td>
+				<td><%= p.room_number || '' %></td>
+				<td><%= p.dietary_restrictions || '' %></td>
+				<td><%= p.allergies || '' %></td>
+				<td>
+					<a href="/admin/patients/<%= p.id %>/edit"><button>Edit</button></a>
+					<form method="post" action="/admin/patients/<%= p.id %>/delete" style="display:inline" onsubmit="return confirm('Delete this patient?')">
+						<button style="background:#b91c1c">Delete</button>
+					</form>
+				</td>
+			</tr>
+			<% }) %>
+		</tbody>
+	</table>
+</div> 

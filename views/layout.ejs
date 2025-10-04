@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title><%= typeof title !== 'undefined' ? title : 'Hospital Meals' %></title>
+	<link rel="stylesheet" href="/public/css/styles.css" />
+</head>
+<body>
+	<nav class="topbar">
+		<div class="brand">Hospital Meals</div>
+		<div style="margin-left:16px">
+			<% if (user) { %>
+				<a href="/dashboard" style="color:#fff;margin-right:12px">Dashboard</a>
+				<% if (user.role === 'receptionist') { %>
+					<a href="/receptionist/tiffin-orders" style="color:#fff;margin-right:12px">Tiffin Orders</a>
+				<% } else { %>
+					<a href="/orders" style="color:#fff;margin-right:12px">Orders</a>
+					<a href="/menu" style="color:#fff;margin-right:12px">Menu</a>
+				<% } %>
+				<% if (user.role === 'admin') { %>
+					<a href="/admin/patients" style="color:#fff;margin-right:12px">Patients</a>
+					<a href="/admin/reports" style="color:#fff;margin-right:12px">Reports</a>
+				<% } %>
+			<% } %>
+		</div>
+		<div class="spacer"></div>
+		<% if (user) { %>
+			<div class="user">
+				<% if (user.userType === 'mess_owner') { %>
+					<span class="user-badge mess-owner">Mess Owner</span>
+				<% } else if (user.userType === 'receptionist') { %>
+					<span class="user-badge receptionist">Receptionist</span>
+				<% } else { %>
+					<span class="user-badge hospital">Hospital Staff</span>
+				<% } %>
+				Welcome, <%= user.full_name %> (<%= user.role %>)
+			</div>
+			<form method="post" action="/logout" style="display:inline;margin-left:12px">
+				<button type="submit">Logout</button>
+			</form>
+		<% } %>
+	</nav>
+	<main class="container">
+		<%- body %>
+	</main>
+	<div id="notif-stack" class="notif-stack"></div>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="/public/js/notifications.js"></script>
+	<script>
+		const socket = window.socket || io();
+		window.socket = socket;
+		socket.on('orders:updated', (payload) => {
+			if (location.pathname.includes('/orders') || location.pathname.includes('/dashboard')) {
+				location.reload();
+			}
+		});
+	</script>
+</body>
+</html>

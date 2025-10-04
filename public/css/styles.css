@@ -1,0 +1,130 @@
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;background:#f6f7f9;color:#222}
+.topbar{display:flex;align-items:center;padding:10px 16px;background:#1f2937;color:#fff}
+.topbar .brand{font-weight:700}
+.topbar .spacer{flex:1}
+.container{max-width:1100px;margin:24px auto;padding:0 16px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+label{display:block;margin:8px 0}
+input,select,textarea{width:100%;padding:8px;border:1px solid #d1d5db;border-radius:6px}
+button{padding:8px 12px;border:0;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer}
+button:hover{background:#1d4ed8}
+.error{background:#fee2e2;color:#991b1b;padding:8px;border-radius:6px;margin:8px 0}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px solid #e5e7eb;text-align:left}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.notif-stack{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:9999}
+.notif{max-width:320px;background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:10px 12px;box-shadow:0 6px 24px rgba(0,0,0,.12);display:flex;align-items:flex-start;gap:8px;animation:slideIn .2s ease-out}
+.notif .avatar{width:28px;height:28px;border-radius:50%;background:#25d366;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;flex:0 0 28px}
+.notif .content{flex:1}
+.notif .title{font-weight:700;margin-bottom:2px}
+.notif .meta{font-size:12px;color:#6b7280;margin-top:2px}
+@keyframes slideIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Login Page Styles */
+.login-container {
+    max-width: 400px;
+    margin: 60px auto;
+    padding: 0 16px;
+}
+
+.login-tabs {
+    display: flex;
+    margin-bottom: 20px;
+    background: #fff;
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    border-bottom: none;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 16px;
+    border: none;
+    background: #f9fafb;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.tab-btn:hover {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.tab-btn.active {
+    background: #fff;
+    color: #2563eb;
+    border-bottom: 2px solid #2563eb;
+}
+
+.login-form {
+    display: none;
+    border-radius: 0 0 8px 8px;
+    margin-bottom: 0;
+}
+
+.login-form.active {
+    display: block;
+}
+
+.login-form h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #111827;
+}
+
+.login-form button[type="submit"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 500;
+    margin-top: 16px;
+}
+
+/* Dashboard Styles */
+.welcome-message {
+    background: #f0f9ff;
+    border: 1px solid #bae6fd;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+
+.welcome-message p {
+    margin: 0;
+    color: #0369a1;
+    font-size: 16px;
+}
+
+.welcome-message strong {
+    color: #0c4a6e;
+}
+
+/* User Badge Styles */
+.user-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+}
+
+.user-badge.mess-owner {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #f59e0b;
+}
+
+.user-badge.hospital {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #3b82f6;
+}
