@@ -1,0 +1,206 @@
+<div class="page-header">
+	<h1><%= action %> Tiffin Order</h1>
+	<p><%= action === 'Create' ? 'Add a new tiffin order for a patient' : 'Update tiffin order details' %></p>
+</div>
+
+<div class="form-container">
+	<form method="post" action="<%= action === 'Create' ? '/receptionist/tiffin-orders/new' : '/receptionist/tiffin-orders/' + order.id + '/edit' %>" class="order-form">
+		<div class="form-group">
+			<label for="patient_name">Patient Name *</label>
+			<input type="text" id="patient_name" name="patient_name" value="<%= order ? order.patient_name : '' %>" required>
+		</div>
+
+		<div class="form-row">
+			<div class="form-group">
+				<label for="ward">Ward *</label>
+				<select id="ward" name="ward" required>
+					<option value="">Select Ward</option>
+					<option value="Ward A" <%= order && order.ward === 'Ward A' ? 'selected' : '' %>>Ward A</option>
+					<option value="Ward B" <%= order && order.ward === 'Ward B' ? 'selected' : '' %>>Ward B</option>
+					<option value="Ward C" <%= order && order.ward === 'Ward C' ? 'selected' : '' %>>Ward C</option>
+					<option value="ICU" <%= order && order.ward === 'ICU' ? 'selected' : '' %>>ICU</option>
+					<option value="Emergency" <%= order && order.ward === 'Emergency' ? 'selected' : '' %>>Emergency</option>
+				</select>
+			</div>
+
+			<div class="form-group">
+				<label for="food_type">Food Type *</label>
+				<select id="food_type" name="food_type" required>
+					<option value="">Select Food Type</option>
+					<option value="Vegetarian" <%= order && order.food_type === 'Vegetarian' ? 'selected' : '' %>>Vegetarian</option>
+					<option value="Non-Vegetarian" <%= order && order.food_type === 'Non-Vegetarian' ? 'selected' : '' %>>Non-Vegetarian</option>
+					<option value="Vegan" <%= order && order.food_type === 'Vegan' ? 'selected' : '' %>>Vegan</option>
+					<option value="Diabetic" <%= order && order.food_type === 'Diabetic' ? 'selected' : '' %>>Diabetic</option>
+					<option value="Low Sodium" <%= order && order.food_type === 'Low Sodium' ? 'selected' : '' %>>Low Sodium</option>
+					<option value="Gluten-Free" <%= order && order.food_type === 'Gluten-Free' ? 'selected' : '' %>>Gluten-Free</option>
+					<option value="Soft Diet" <%= order && order.food_type === 'Soft Diet' ? 'selected' : '' %>>Soft Diet</option>
+					<option value="Liquid Diet" <%= order && order.food_type === 'Liquid Diet' ? 'selected' : '' %>>Liquid Diet</option>
+				</select>
+			</div>
+		</div>
+
+		<div class="form-row">
+			<div class="form-group">
+				<label for="quantity">Quantity *</label>
+				<input type="number" id="quantity" name="quantity" value="<%= order ? order.quantity : '1' %>" min="1" max="10" required>
+			</div>
+
+			<div class="form-group">
+				<label for="order_date">Order Date *</label>
+				<input type="date" id="order_date" name="order_date" value="<%= order ? order.order_date : '' %>" required>
+			</div>
+		</div>
+
+		<% if (action === 'Update') { %>
+			<div class="form-group">
+				<label for="status">Status</label>
+				<select id="status" name="status">
+					<option value="pending" <%= order && order.status === 'pending' ? 'selected' : '' %>>Pending</option>
+					<option value="confirmed" <%= order && order.status === 'confirmed' ? 'selected' : '' %>>Confirmed</option>
+					<option value="preparing" <%= order && order.status === 'preparing' ? 'selected' : '' %>>Preparing</option>
+					<option value="ready" <%= order && order.status === 'ready' ? 'selected' : '' %>>Ready</option>
+					<option value="delivered" <%= order && order.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+					<option value="cancelled" <%= order && order.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+				</select>
+			</div>
+		<% } %>
+
+		<div class="form-group">
+			<label for="notes">Notes</label>
+			<textarea id="notes" name="notes" rows="3" placeholder="Any special instructions or notes..."><%= order ? order.notes : '' %></textarea>
+		</div>
+
+		<div class="form-actions">
+			<button type="submit" class="btn btn-primary">
+				<%= action === 'Create' ? 'Create Order' : 'Update Order' %>
+			</button>
+			<a href="/receptionist/tiffin-orders" class="btn btn-secondary">Cancel</a>
+		</div>
+	</form>
+</div>
+
+<style>
+.form-container {
+	max-width: 800px;
+	margin: 0 auto;
+	background: white;
+	padding: 2rem;
+	border-radius: 8px;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.order-form {
+	display: flex;
+	flex-direction: column;
+	gap: 1.5rem;
+}
+
+.form-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 1rem;
+}
+
+.form-group {
+	display: flex;
+	flex-direction: column;
+}
+
+.form-group label {
+	font-weight: 600;
+	margin-bottom: 0.5rem;
+	color: #333;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+	padding: 0.75rem;
+	border: 1px solid #ced4da;
+	border-radius: 4px;
+	font-size: 1rem;
+	transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+	outline: 0;
+	border-color: #007bff;
+	box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-group textarea {
+	resize: vertical;
+	min-height: 80px;
+}
+
+.form-actions {
+	display: flex;
+	gap: 1rem;
+	justify-content: flex-end;
+	padding-top: 1rem;
+	border-top: 1px solid #e9ecef;
+}
+
+.btn {
+	padding: 0.75rem 1.5rem;
+	border: none;
+	border-radius: 4px;
+	font-size: 1rem;
+	font-weight: 500;
+	text-decoration: none;
+	display: inline-block;
+	text-align: center;
+	cursor: pointer;
+	transition: all 0.15s ease-in-out;
+}
+
+.btn-primary {
+	background: #007bff;
+	color: white;
+}
+
+.btn-primary:hover {
+	background: #0056b3;
+}
+
+.btn-secondary {
+	background: #6c757d;
+	color: white;
+}
+
+.btn-secondary:hover {
+	background: #545b62;
+}
+
+@media (max-width: 768px) {
+	.form-row {
+		grid-template-columns: 1fr;
+	}
+	
+	.form-actions {
+		flex-direction: column;
+	}
+	
+	.btn {
+		width: 100%;
+	}
+}
+</style>
+
+<script>
+// Set default date to today if creating new order
+document.addEventListener('DOMContentLoaded', function() {
+	const orderDateInput = document.getElementById('order_date');
+	if (!orderDateInput.value) {
+		const today = new Date().toISOString().split('T')[0];
+		orderDateInput.value = today;
+	}
+});
+</script>
+
+
+
+
+

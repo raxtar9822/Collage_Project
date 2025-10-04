@@ -1,0 +1,64 @@
+<% const _layout = 'layout'; %>
+<% const title = 'Login'; %>
+
+<div class="login-container">
+    <div class="login-tabs">
+        <button class="tab-btn active" data-tab="mess">Mess Owner</button>
+        <button class="tab-btn" data-tab="hospital">Hospital</button>
+    </div>
+
+    <!-- Mess Owner Login Form -->
+    <form class="login-form card active" id="mess-form" method="post" action="/login/mess">
+        <h2>Mess Owner Login</h2>
+        <% if (error && errorType === 'mess') { %>
+            <div class="error"><%= error %></div>
+        <% } %>
+        <label>Username
+            <input name="username" required />
+        </label>
+        <label>Password
+            <input name="password" type="password" required />
+        </label>
+        <button type="submit">Sign in as Mess Owner</button>
+    </form>
+
+    <!-- Hospital Login Form -->
+    <form class="login-form card" id="hospital-form" method="post" action="/login/hospital">
+        <h2>Hospital Login</h2>
+        <% if (error && errorType === 'hospital') { %>
+            <div class="error"><%= error %></div>
+        <% } %>
+        <label>Username
+            <input name="username" required />
+        </label>
+        <label>Password
+            <input name="password" type="password" required />
+        </label>
+        <button type="submit">Sign in to Hospital</button>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const forms = document.querySelectorAll('.login-form');
+
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const targetTab = this.dataset.tab;
+            
+            // Update active tab button
+            tabBtns.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update active form
+            forms.forEach(form => {
+                form.classList.remove('active');
+                if (form.id === targetTab + '-form') {
+                    form.classList.add('active');
+                }
+            });
+        });
+    });
+});
+</script>
