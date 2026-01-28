@@ -24,8 +24,8 @@ CREATE TABLE IF NOT EXISTS patients (
     ward VARCHAR(50) NOT NULL,
     bed VARCHAR(20) NOT NULL,
     room_number VARCHAR(20) DEFAULT '',
-    dietary_restrictions TEXT DEFAULT '',
-    allergies TEXT DEFAULT '',
+    dietary_restrictions TEXT,
+    allergies TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     patient_id INT NOT NULL,
     item_id INT NOT NULL,
-    special_instructions TEXT DEFAULT '',
+    special_instructions TEXT,
     status ENUM('placed','in_kitchen','out_for_delivery','delivered','cancelled') DEFAULT 'placed',
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS tiffin_orders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     created_by INT NOT NULL,
-    notes TEXT DEFAULT '',
+    notes TEXT,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
 );
 
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     entity VARCHAR(50) NOT NULL,
     entity_id INT NOT NULL,
     action VARCHAR(50) NOT NULL,
-    details TEXT DEFAULT '',
+    details TEXT,
     user_id INT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -141,6 +141,8 @@ DESCRIBE menu_items;
 DESCRIBE orders;
 DESCRIBE tiffin_orders;
 DESCRIBE audit_logs;
+
+
 
 
 

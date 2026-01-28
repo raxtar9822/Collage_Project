@@ -1,7 +1,7 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const { verifyToken } = require('./auth');
-const { logAudit } = require('./db');
+const { logAudit } = require('./db-mysql');
 
 /**
  * Real-time WebSocket Manager for Hospital Meal System

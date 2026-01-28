@@ -1,64 +1,244 @@
-<% const _layout = 'layout'; %>
-<% const title = 'Login'; %>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Meals • Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
 
-<div class="login-container">
-    <div class="login-tabs">
-        <button class="tab-btn active" data-tab="mess">Mess Owner</button>
-        <button class="tab-btn" data-tab="hospital">Hospital</button>
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #123456;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #0f172a;
+            display: flex;
+        }
+
+        .page {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 16px;
+        }
+
+        .card {
+            width: 100%;
+            max-width: 420px;
+            background: #ffffff;
+            border-radius: 28px;
+            padding: 48px 40px;
+            box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
+        }
+
+        .brand {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .brand__icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            margin-bottom: 14px;
+        }
+
+        .brand__title {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .brand__subtitle {
+            margin: 6px 0 0;
+            color: #64748b;
+            font-size: 15px;
+        }
+
+        .role-toggle {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 26px;
+        }
+
+        .role-btn {
+            border-radius: 12px;
+            border: 2px solid #3b82f6;
+            background: #fff;
+            color: #3b82f6;
+            font-weight: 600;
+            font-size: 15px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .role-btn.active {
+            background: #3b82f6;
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(59, 130, 246, 0.35);
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: #0f172a;
+        }
+
+        .form-copy {
+            font-size: 18px;
+            font-weight: 600;
+            color: #0f172a;
+            margin-bottom: 18px;
+        }
+
+        .input {
+            width: 100%;
+            border-radius: 12px;
+            border: 1.6px solid #e2e8f0;
+            padding: 12px 14px;
+            font-size: 15px;
+            background: #f8fafc;
+            transition: border-color 0.2s ease, background 0.2s ease;
+            margin-bottom: 18px;
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: #2563eb;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+        }
+
+        .btn {
+            width: 100%;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 18px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(135deg, #0ea5e9, #2563eb);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+            transition: transform 0.15s ease;
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .alert {
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 14px;
+            background: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid #fecaca;
+            margin-bottom: 18px;
+        }
+
+        @media (max-width: 500px) {
+            .card {
+                padding: 36px 28px;
+                border-radius: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="card">
+        <div class="brand">
+            <div class="brand__icon">🏥</div>
+            <h1 class="brand__title">Hospital Meals</h1>
+            <p class="brand__subtitle">Meal Ordering System</p>
+        </div>
+
+        <% if (typeof error !== 'undefined' && error) { %>
+            <div class="alert"><%= error %></div>
+        <% } %>
+
+        <div class="role-toggle">
+            <button type="button" id="btn-mess" class="role-btn">Mess Owner</button>
+            <button type="button" id="btn-hospital" class="role-btn">Hospital Staff</button>
+        </div>
+
+        <form id="loginForm" method="POST" action="/login/mess" novalidate>
+            <div class="form-copy" id="formLabel">Mess Owner Login</div>
+            <label for="username">Username</label>
+            <input
+                id="username"
+                name="username"
+                type="text"
+                class="input"
+                placeholder="Enter username"
+                required
+            >
+
+            <label for="password">Password</label>
+            <input
+                id="password"
+                name="password"
+                type="password"
+                class="input"
+                placeholder="Enter password"
+                required
+            >
+
+            <button class="btn" type="submit">Sign In</button>
+        </form>
+        </div>
     </div>
 
-    <!-- Mess Owner Login Form -->
-    <form class="login-form card active" id="mess-form" method="post" action="/login/mess">
-        <h2>Mess Owner Login</h2>
-        <% if (error && errorType === 'mess') { %>
-            <div class="error"><%= error %></div>
-        <% } %>
-        <label>Username
-            <input name="username" required />
-        </label>
-        <label>Password
-            <input name="password" type="password" required />
-        </label>
-        <button type="submit">Sign in as Mess Owner</button>
-    </form>
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const formLabel = document.getElementById('formLabel');
+        const btnMess = document.getElementById('btn-mess');
+        const btnHospital = document.getElementById('btn-hospital');
+        const defaultType = '<%= errorType === "hospital" ? "hospital" : "mess" %>';
 
-    <!-- Hospital Login Form -->
-    <form class="login-form card" id="hospital-form" method="post" action="/login/hospital">
-        <h2>Hospital Login</h2>
-        <% if (error && errorType === 'hospital') { %>
-            <div class="error"><%= error %></div>
-        <% } %>
-        <label>Username
-            <input name="username" required />
-        </label>
-        <label>Password
-            <input name="password" type="password" required />
-        </label>
-        <button type="submit">Sign in to Hospital</button>
-    </form>
-</div>
+        function setMode(type) {
+            const messActive = type === 'mess';
+            btnMess.classList.toggle('active', messActive);
+            btnHospital.classList.toggle('active', !messActive);
+            loginForm.action = messActive ? '/login/mess' : '/login/hospital';
+            formLabel.textContent = messActive ? 'Mess Owner Login' : 'Hospital Staff Login';
+            document.getElementById('username').placeholder = messActive ? 'messowner' : 'nurse1';
+            document.getElementById('password').placeholder = messActive ? '********' : '********';
+        }
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const forms = document.querySelectorAll('.login-form');
-
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const targetTab = this.dataset.tab;
-            
-            // Update active tab button
-            tabBtns.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Update active form
-            forms.forEach(form => {
-                form.classList.remove('active');
-                if (form.id === targetTab + '-form') {
-                    form.classList.add('active');
-                }
-            });
+        btnMess.addEventListener('click', () => {
+            setMode('mess');
         });
-    });
-});
-</script>
+
+        btnHospital.addEventListener('click', () => {
+            setMode('hospital');
+        });
+
+        setMode(defaultType);
+    </script>
+</body>
+</html>
+

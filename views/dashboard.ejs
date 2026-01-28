@@ -1,49 +1,38 @@
 <% const title = 'Dashboard'; %>
 
-<div class="card">
-    <h2>
-        <% if (user.userType === 'mess_owner') { %>
-            Mess Owner Dashboard
-        <% } else { %>
-            Hospital Dashboard
-        <% } %>
-    </h2>
-    
-    <div class="welcome-message">
-        <% if (user.userType === 'mess_owner') { %>
-            <p>Welcome, <strong><%= user.full_name %></strong>! You have full administrative access to manage the mess operations.</p>
-        <% } else { %>
-            <p>Welcome, <strong><%= user.full_name %></strong>! You are logged in as <strong><%= user.role %></strong> staff.</p>
-        <% } %>
-    </div>
+<div class="welcome-message">
+	<h2 style="margin-bottom: 8px;">👋 Welcome, <%= user.full_name %>!</h2>
+	<p>You are logged in as <strong><%= user.role.toUpperCase() %></strong></p>
 </div>
 
 <div class="card">
-	<h2>Orders</h2>
-	<table>
-		<thead>
-			<tr>
-				<th>ID</th>
-				<th>Patient</th>
-				<th>Room</th>
-				<th>Dietary / Allergies</th>
-				<th>Item</th>
-				<th>Status</th>
-				<th>Created</th>
-			</tr>
-		</thead>
-		<tbody>
-			<% orders.forEach(o => { %>
-			<tr>
-				<td><%= o.id %></td>
-				<td><%= o.patient_name %></td>
-				<td><%= o.room_number || '' %></td>
-				<td><%= (o.dietary_restrictions || '') %><% if (o.allergies) { %> / <strong><%= o.allergies %></strong><% } %></td>
-				<td><%= o.item_name %></td>
-				<td><%= o.status %></td>
-				<td><%= dayjs(o.created_at).format('YYYY-MM-DD HH:mm') %></td>
-			</tr>
-			<% }) %>
-		</tbody>
-	</table>
+	<h2>📦 Recent Orders</h2>
+	<% if (orders.length === 0) { %>
+		<p style="color: #6b7280; text-align: center; padding: 32px;">No orders yet</p>
+	<% } else { %>
+		<table>
+			<thead>
+				<tr>
+					<th>#ID</th>
+					<th>Patient</th>
+					<th>Item</th>
+					<th>Room</th>
+					<th>Status</th>
+					<th>Created</th>
+				</tr>
+			</thead>
+			<tbody>
+				<% orders.forEach(o => { %>
+				<tr>
+					<td><strong>#<%= o.id %></strong></td>
+					<td><%= o.patient_name %></td>
+					<td><%= o.item_name %></td>
+					<td><%= o.room_number || '-' %></td>
+					<td><span class="badge <%= o.status %>"><%= o.status.replace(/_/g, ' ') %></span></td>
+					<td><%= dayjs(o.created_at).format('MMM DD, HH:mm') %></td>
+				</tr>
+				<% }) %>
+			</tbody>
+		</table>
+	<% } %>
 </div>

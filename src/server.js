@@ -166,6 +166,16 @@ app.post('/login/mess', authRateLimit, async (req, res) => {
 		});
 	}
 	
+	// Add this check to prevent bcrypt error if password_hash is missing
+	if (!user.password_hash) {
+		logAuthEvent('login_failed', user.id, { username, reason: 'missing_password_hash', userType: 'mess' }, req.ip);
+		return res.status(401).render('login', { 
+			error: 'Invalid credentials or insufficient privileges for mess owner', 
+			errorType: 'mess', 
+			user: null 
+		});
+	}
+	
 	if (!bcrypt.compareSync(password, user.password_hash)) {
 		logAuthEvent('login_failed', user.id, { username, reason: 'invalid_password', userType: 'mess' }, req.ip);
 		return res.status(401).render('login', { 
@@ -472,11 +482,11 @@ app.get('/admin/reports/export.xlsx', requireAuth, requireRole(['admin']), async
 		return ws;
 	}
 
-	const daily = await getDailyMealCounts(30);
-	const weekly = await getWeeklyMealCounts(12);
-	const topDishes = await getMostRequestedDishes(25);
-	const byDiet = await getOrdersByDietaryRestriction();
-	const waste = await getWasteByWardDaily(30);
+	const daily = getDailyMealCounts(30);
+	const weekly = getWeeklyMealCounts(12);
+	const topDishes = getMostRequestedDishes(25);
+	const byDiet = getOrdersByDietaryRestriction();
+	const waste = getWasteByWardDaily(30);
 
 	sheetFrom('Daily', [{label:'Day',key:'day'},{label:'Count',key:'count'}], daily);
 	sheetFrom('Weekly', [{label:'Week',key:'week'},{label:'Count',key:'count'}], weekly);
@@ -567,19 +577,19 @@ app.post('/receptionist/tiffin-orders/:id/status', requireAuth, requireRole(['re
 });
 
 // REST API endpoints for tiffin orders
-app.get('/api/tiffin-orders', requireAuth, (req, res) => {
+app.get('/api/tiffin-orders', requireAuth, async (req, res) => {
 	const filter = {
 		status: req.query.status || null,
 		ward: req.query.ward || null,
 		orderDate: req.query.orderDate || null
 	};
-	const orders = getTiffinOrders(filter);
+	const orders = await getTiffinOrders(filter);
 	res.json(orders);
 });
 
-app.post('/api/tiffin-orders', requireAuth, requireRole(['receptionist', 'admin']), (req, res) => {
+app.post('/api/tiffin-orders', requireAuth, requireRole(['receptionist', 'admin']), async (req, res) => {
 	const { patient_name, ward, food_type, quantity, order_date, notes } = req.body;
-	const orderId = createTiffinOrder({
+	const orderId = await createTiffinOrder({
 		patientName: patient_name,
 		ward: ward,
 		foodType: food_type,
@@ -588,13 +598,13 @@ app.post('/api/tiffin-orders', requireAuth, requireRole(['receptionist', 'admin'
 		notes: notes,
 		userId: req.session.user.id
 	});
-	const order = getTiffinOrderById(orderId);
+	const order = await getTiffinOrderById(orderId);
 	res.json({ success: true, order });
 });
 
-app.put('/api/tiffin-orders/:id', requireAuth, requireRole(['receptionist', 'admin']), (req, res) => {
+app.put('/api/tiffin-orders/:id', requireAuth, requireRole(['receptionist', 'admin']), async (req, res) => {
 	const { patient_name, ward, food_type, quantity, order_date, notes, status } = req.body;
-	updateTiffinOrder(Number(req.params.id), {
+	await updateTiffinOrder(Number(req.params.id), {
 		patientName: patient_name,
 		ward: ward,
 		foodType: food_type,
@@ -603,19 +613,19 @@ app.put('/api/tiffin-orders/:id', requireAuth, requireRole(['receptionist', 'adm
 		notes: notes,
 		status: status
 	});
-	const order = getTiffinOrderById(Number(req.params.id));
+	const order = await getTiffinOrderById(Number(req.params.id));
 	res.json({ success: true, order });
 });
 
-app.delete('/api/tiffin-orders/:id', requireAuth, requireRole(['receptionist', 'admin']), (req, res) => {
-	deleteTiffinOrder(Number(req.params.id));
+app.delete('/api/tiffin-orders/:id', requireAuth, requireRole(['receptionist', 'admin']), async (req, res) => {
+	await deleteTiffinOrder(Number(req.params.id));
 	res.json({ success: true });
 });
 
 // JWT Authentication endpoints
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
 	const { username, password, userType } = req.body;
-	const user = getUserByUsername(username);
+	const user = await getUserByUsername(username);
 	
 	if (!user) {
 		return res.status(401).json({ 
@@ -624,7 +634,15 @@ app.post('/api/auth/login', (req, res) => {
 		});
 	}
 	
-	// Check user type and role
+	// Check password first
+	if (!bcrypt.compareSync(password, user.password_hash)) {
+		return res.status(401).json({ 
+			error: 'Invalid credentials',
+			code: 'INVALID_CREDENTIALS'
+		});
+	}
+	
+	// Check user type and role - allow admin role for both mess and hospital
 	if (userType === 'mess' && user.role !== 'admin') {
 		return res.status(401).json({ 
 			error: 'Insufficient privileges for mess owner access',
@@ -632,17 +650,10 @@ app.post('/api/auth/login', (req, res) => {
 		});
 	}
 	
-	if (userType === 'hospital' && !['nurse', 'kitchen', 'delivery', 'receptionist'].includes(user.role)) {
+	if (userType === 'hospital' && user.role === 'admin') {
 		return res.status(401).json({ 
-			error: 'Insufficient privileges for hospital access',
+			error: 'Admin access restricted to mess owner portal',
 			code: 'INSUFFICIENT_PRIVILEGES'
-		});
-	}
-	
-	if (!bcrypt.compareSync(password, user.password_hash)) {
-		return res.status(401).json({ 
-			error: 'Invalid credentials',
-			code: 'INVALID_CREDENTIALS'
 		});
 	}
 	
@@ -703,19 +714,19 @@ app.post('/api/auth/logout', jwtAuthMiddleware, (req, res) => {
 });
 
 // Update existing API endpoints to use JWT authentication
-app.get('/api/tiffin-orders', jwtAuthMiddleware, (req, res) => {
+app.get('/api/tiffin-orders', jwtAuthMiddleware, async (req, res) => {
 	const filter = {
 		status: req.query.status || null,
 		ward: req.query.ward || null,
 		orderDate: req.query.orderDate || null
 	};
-	const orders = getTiffinOrders(filter);
+	const orders = await getTiffinOrders(filter);
 	res.json(orders);
 });
 
-app.post('/api/tiffin-orders', jwtAuthMiddleware, jwtRequireRole(['receptionist', 'admin']), (req, res) => {
+app.post('/api/tiffin-orders', jwtAuthMiddleware, jwtRequireRole(['receptionist', 'admin']), async (req, res) => {
 	const { patient_name, ward, food_type, quantity, order_date, notes } = req.body;
-	const orderId = createTiffinOrder({
+	const orderId = await createTiffinOrder({
 		patientName: patient_name,
 		ward: ward,
 		foodType: food_type,
@@ -724,13 +735,13 @@ app.post('/api/tiffin-orders', jwtAuthMiddleware, jwtRequireRole(['receptionist'
 		notes: notes,
 		userId: req.user.id
 	});
-	const order = getTiffinOrderById(orderId);
+	const order = await getTiffinOrderById(orderId);
 	res.json({ success: true, order });
 });
 
-app.put('/api/tiffin-orders/:id', jwtAuthMiddleware, jwtRequireRole(['receptionist', 'admin']), (req, res) => {
+app.put('/api/tiffin-orders/:id', jwtAuthMiddleware, jwtRequireRole(['receptionist', 'admin']), async (req, res) => {
 	const { patient_name, ward, food_type, quantity, order_date, notes, status } = req.body;
-	updateTiffinOrder(Number(req.params.id), {
+	await updateTiffinOrder(Number(req.params.id), {
 		patientName: patient_name,
 		ward: ward,
 		foodType: food_type,
@@ -743,13 +754,13 @@ app.put('/api/tiffin-orders/:id', jwtAuthMiddleware, jwtRequireRole(['receptioni
 	res.json({ success: true, order });
 });
 
-app.delete('/api/tiffin-orders/:id', jwtAuthMiddleware, jwtRequireRole(['receptionist', 'admin']), (req, res) => {
-	deleteTiffinOrder(Number(req.params.id));
+app.delete('/api/tiffin-orders/:id', jwtAuthMiddleware, jwtRequireRole(['receptionist', 'admin']), async (req, res) => {
+	await deleteTiffinOrder(Number(req.params.id));
 	res.json({ success: true });
 });
 
-app.get('/patients', requireAuth, (req, res) => {
-	const patients = getPatients();
+app.get('/patients', requireAuth, async (req, res) => {
+	const patients = await getPatients();
 	res.json(patients);
 });
 

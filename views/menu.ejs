@@ -1,31 +1,211 @@
-<% const title = 'Menu'; %>
-<div class="card">
-	<div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-		<h2>Menu Items</h2>
-		<% if (user && user.role === 'admin') { %>
-		<form method="post" action="/admin/menu/indian" onsubmit="return confirm('Replace current menu with curated Indian dishes?')">
-			<button type="submit">Load Indian Menu</button>
-		</form>
-		<% } %>
-	</div>
-	<table>
-		<thead>
-			<tr>
-				<th>ID</th>
-				<th>Name</th>
-				<th>Category</th>
-				<th>Dietary</th>
-			</tr>
-		</thead>
-		<tbody>
-			<% menu.forEach(m => { %>
-			<tr>
-				<td><%= m.id %></td>
-				<td><%= m.name %></td>
-				<td><%= m.category %></td>
-				<td><%= m.dietary %></td>
-			</tr>
-			<% }) %>
-		</tbody>
-	</table>
-</div>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu Management - Hospital Meals</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            color: #1a202c;
+            font-size: 28px;
+        }
+        
+        .menu-section {
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .section-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 25px;
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+        
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 25px;
+        }
+        
+        .menu-item {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .menu-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .menu-item-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a202c;
+            margin: 0 0 10px 0;
+        }
+        
+        .menu-item-dietary {
+            font-size: 13px;
+            color: #718096;
+            background: #edf2f7;
+            padding: 6px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-top: 8px;
+        }
+        
+        .no-items {
+            text-align: center;
+            padding: 40px;
+            color: #718096;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        @media (max-width: 768px) {
+            .menu-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .header h1 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+        
+        <div class="header">
+            <h1>🍽️ Menu Management</h1>
+            <p>Current hospital meal menu items</p>
+        </div>
+        
+        <% if (menu && menu.length > 0) { %>
+            <% 
+                const categories = {};
+                menu.forEach(item => {
+                    if (!categories[item.category]) {
+                        categories[item.category] = [];
+                    }
+                    categories[item.category].push(item);
+                });
+            %>
+            
+            <% Object.keys(categories).sort().forEach(category => { %>
+                <div class="menu-section">
+                    <h2 class="section-title"><%= category %></h2>
+                    <div class="menu-grid">
+                        <% categories[category].forEach(item => { %>
+                            <div class="menu-item">
+                                <h3 class="menu-item-name"><%= item.name %></h3>
+                                <% if (item.dietary) { %>
+                                    <span class="menu-item-dietary"><%= item.dietary %></span>
+                                <% } %>
+                            </div>
+                        <% }); %>
+                    </div>
+                </div>
+            <% }); %>
+            
+            <div class="menu-section" style="margin-top: 30px;">
+                <div style="padding: 25px;">
+                    <h3 style="margin-top: 0; color: #1a202c;">Menu Actions</h3>
+                    <form method="POST" action="/admin/menu/indian" style="display: inline;">
+                        <button type="submit" class="btn btn-primary">
+                            🔄 Replace with Indian Menu
+                        </button>
+                    </form>
+                </div>
+            </div>
+        <% } else { %>
+            <div class="menu-section">
+                <div class="no-items">
+                    <h3>No menu items available</h3>
+                    <p>Click below to load the default Indian menu</p>
+                    <form method="POST" action="/admin/menu/indian" style="display: inline;">
+                        <button type="submit" class="btn btn-primary">
+                            Load Default Menu
+                        </button>
+                    </form>
+                </div>
+            </div>
+        <% } %>
+    </div>
+</body>
+</html>

@@ -1,137 +1,170 @@
-const Database = require('better-sqlite3');
+const fs = require('fs');
 const path = require('path');
+const Database = require('better-sqlite3');
 const bcrypt = require('bcrypt');
 
-const dbFile = process.env.DB_PATH ? path.resolve(process.env.DB_PATH) : path.join(__dirname, '..', 'hospital_meals.sqlite');
-const db = new Database(dbFile);
+// Check if MySQL should be used
+// Only use MySQL if explicitly set via DB_TYPE=mysql, not just if MYSQL_HOST exists
+const USE_MYSQL = process.env.DB_TYPE === 'mysql' || process.env.DB_DRIVER === 'mysql';
 
-db.pragma('journal_mode = WAL');
+let db;
+let dbType = 'sqlite';
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS users (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	username TEXT UNIQUE NOT NULL,
-	password_hash TEXT NOT NULL,
-	role TEXT NOT NULL CHECK(role IN ('admin','nurse','kitchen','delivery','receptionist')),
-	full_name TEXT NOT NULL
-);
+// Initialize database based on configuration
+if (USE_MYSQL) {
+	// MySQL database - will be handled by db-mysql.js
+	console.log('📦 MySQL database configured. Please ensure MySQL is set up and use db-mysql.js module.');
+	console.log('⚠️  Note: To use SQLite, set DB_TYPE=sqlite or remove DB_TYPE/DB_DRIVER from .env');
+	dbType = 'mysql';
+} else {
+	// SQLite database (default)
+	const sqlitePath = process.env.SQLITE_DB_PATH || './database/hospital_meals.sqlite';
+	const dbFile = path.resolve(sqlitePath);
+	const dbDir = path.dirname(dbFile);
+	if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
 
-CREATE TABLE IF NOT EXISTS patients (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	mrn TEXT UNIQUE NOT NULL,
-	full_name TEXT NOT NULL,
-	ward TEXT NOT NULL,
-	bed TEXT NOT NULL
-);
+	try {
+		db = new Database(dbFile);
+		console.log(`✅ Connected to SQLite database: ${dbFile}`);
+	} catch (err) {
+		console.error(`Failed to open SQLite DB at ${dbFile}: ${err.message}`);
+		throw err;
+	}
 
-CREATE TABLE IF NOT EXISTS menu_items (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	name TEXT NOT NULL,
-	category TEXT NOT NULL,
-	dietary TEXT DEFAULT ''
-);
+	db.pragma('journal_mode = WAL');
+	
+	// Create tables for SQLite
+	db.exec(`
+	CREATE TABLE IF NOT EXISTS users (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		username TEXT UNIQUE NOT NULL,
+		password_hash TEXT NOT NULL,
+		role TEXT NOT NULL CHECK(role IN ('admin','nurse','kitchen','delivery','receptionist')),
+		full_name TEXT NOT NULL
+	);
 
-CREATE TABLE IF NOT EXISTS orders (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	patient_id INTEGER NOT NULL,
-	item_id INTEGER NOT NULL,
-	special_instructions TEXT DEFAULT '',
-	status TEXT NOT NULL CHECK(status IN ('placed','in_kitchen','out_for_delivery','delivered','cancelled')) DEFAULT 'placed',
-	created_at TEXT NOT NULL,
-	updated_at TEXT NOT NULL,
-	created_by INTEGER NOT NULL,
-	consumption_status TEXT NOT NULL DEFAULT 'unknown' CHECK(consumption_status IN ('unknown','eaten','partial','refused')),
-	waste_percent INTEGER NOT NULL DEFAULT 0,
-	consumption_recorded_at TEXT,
-	FOREIGN KEY(patient_id) REFERENCES patients(id),
-	FOREIGN KEY(item_id) REFERENCES menu_items(id),
-	FOREIGN KEY(created_by) REFERENCES users(id)
-);
+	CREATE TABLE IF NOT EXISTS patients (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		mrn TEXT UNIQUE NOT NULL,
+		full_name TEXT NOT NULL,
+		ward TEXT NOT NULL,
+		bed TEXT NOT NULL
+	);
 
-CREATE TABLE IF NOT EXISTS audit_logs (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	entity TEXT NOT NULL,
-	entity_id INTEGER NOT NULL,
-	action TEXT NOT NULL,
-	details TEXT DEFAULT '',
-	user_id INTEGER,
-	created_at TEXT NOT NULL,
-	FOREIGN KEY(user_id) REFERENCES users(id)
-);
+	CREATE TABLE IF NOT EXISTS menu_items (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL,
+		category TEXT NOT NULL,
+		dietary TEXT DEFAULT ''
+	);
 
-CREATE TABLE IF NOT EXISTS tiffin_orders (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	patient_name TEXT NOT NULL,
-	ward TEXT NOT NULL,
-	food_type TEXT NOT NULL,
-	quantity INTEGER NOT NULL DEFAULT 1,
-	order_date TEXT NOT NULL,
-	status TEXT NOT NULL CHECK(status IN ('pending','confirmed','preparing','ready','delivered','cancelled')) DEFAULT 'pending',
-	created_at TEXT NOT NULL,
-	updated_at TEXT NOT NULL,
-	created_by INTEGER NOT NULL,
-	notes TEXT DEFAULT '',
-	FOREIGN KEY(created_by) REFERENCES users(id)
-);
-`);
+	CREATE TABLE IF NOT EXISTS orders (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		patient_id INTEGER NOT NULL,
+		item_id INTEGER NOT NULL,
+		special_instructions TEXT DEFAULT '',
+		status TEXT NOT NULL CHECK(status IN ('placed','in_kitchen','out_for_delivery','delivered','cancelled')) DEFAULT 'placed',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL,
+		created_by INTEGER NOT NULL,
+		consumption_status TEXT NOT NULL DEFAULT 'unknown' CHECK(consumption_status IN ('unknown','eaten','partial','refused')),
+		waste_percent INTEGER NOT NULL DEFAULT 0,
+		consumption_recorded_at TEXT,
+		FOREIGN KEY(patient_id) REFERENCES patients(id),
+		FOREIGN KEY(item_id) REFERENCES menu_items(id),
+		FOREIGN KEY(created_by) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS audit_logs (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		entity TEXT NOT NULL,
+		entity_id INTEGER NOT NULL,
+		action TEXT NOT NULL,
+		details TEXT DEFAULT '',
+		user_id INTEGER,
+		created_at TEXT NOT NULL,
+		FOREIGN KEY(user_id) REFERENCES users(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS tiffin_orders (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		patient_name TEXT NOT NULL,
+		ward TEXT NOT NULL,
+		food_type TEXT NOT NULL,
+		quantity INTEGER NOT NULL DEFAULT 1,
+		order_date TEXT NOT NULL,
+		status TEXT NOT NULL CHECK(status IN ('pending','confirmed','preparing','ready','delivered','cancelled')) DEFAULT 'pending',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL,
+		created_by INTEGER NOT NULL,
+		notes TEXT DEFAULT '',
+		FOREIGN KEY(created_by) REFERENCES users(id)
+	);
+	`);
+}
 
 function nowIso() {
 	return new Date().toISOString();
 }
 
-function addColumnIfMissing(table, column, ddl) {
-	const cols = db.prepare(`PRAGMA table_info(${table})`).all();
-	if (!cols.find(c => c.name === column)) {
-		db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+// SQLite-specific migrations
+if (dbType === 'sqlite' && db) {
+	function addColumnIfMissing(table, column, ddl) {
+		const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+		if (!cols.find(c => c.name === column)) {
+			db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+		}
 	}
+
+	// Safe migration for new patient fields
+	addColumnIfMissing('patients', 'room_number', `TEXT NOT NULL DEFAULT ''`);
+	addColumnIfMissing('patients', 'dietary_restrictions', `TEXT DEFAULT ''`);
+	addColumnIfMissing('patients', 'allergies', `TEXT DEFAULT ''`);
+
+	// Safe migration for waste tracking fields on orders
+	addColumnIfMissing('orders', 'consumption_status', `TEXT NOT NULL DEFAULT 'unknown'`);
+	addColumnIfMissing('orders', 'waste_percent', `INTEGER NOT NULL DEFAULT 0`);
+	addColumnIfMissing('orders', 'consumption_recorded_at', `TEXT`);
+
+	// Migration: ensure users.role CHECK includes 'receptionist'
+	function ensureUsersRoleAllowsReceptionist() {
+		try {
+			const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'").get();
+			const createSql = row && row.sql ? row.sql : '';
+			if (createSql.includes("'receptionist'")) {
+				return; // already compatible
+			}
+
+			// Perform table migration to widen CHECK constraint
+			db.pragma('foreign_keys = OFF');
+			const tx = db.transaction(() => {
+				db.exec(`CREATE TABLE IF NOT EXISTS users_migrating (
+					id INTEGER PRIMARY KEY AUTOINCREMENT,
+					username TEXT UNIQUE NOT NULL,
+					password_hash TEXT NOT NULL,
+					role TEXT NOT NULL CHECK(role IN ('admin','nurse','kitchen','delivery','receptionist')),
+					full_name TEXT NOT NULL
+				);`);
+
+				// Copy data
+				db.exec(`INSERT OR IGNORE INTO users_migrating (id, username, password_hash, role, full_name)
+						 SELECT id, username, password_hash, role, full_name FROM users;`);
+
+				db.exec('DROP TABLE users');
+				db.exec('ALTER TABLE users_migrating RENAME TO users');
+			});
+			tx();
+		} finally {
+			db.pragma('foreign_keys = ON');
+		}
+	}
+
+	ensureUsersRoleAllowsReceptionist();
 }
-
-// Safe migration for new patient fields
-addColumnIfMissing('patients', 'room_number', `TEXT NOT NULL DEFAULT ''`);
-addColumnIfMissing('patients', 'dietary_restrictions', `TEXT DEFAULT ''`);
-addColumnIfMissing('patients', 'allergies', `TEXT DEFAULT ''`);
-
-// Safe migration for waste tracking fields on orders
-addColumnIfMissing('orders', 'consumption_status', `TEXT NOT NULL DEFAULT 'unknown'`);
-addColumnIfMissing('orders', 'waste_percent', `INTEGER NOT NULL DEFAULT 0`);
-addColumnIfMissing('orders', 'consumption_recorded_at', `TEXT`);
-
-// Migration: ensure users.role CHECK includes 'receptionist'
-function ensureUsersRoleAllowsReceptionist() {
-    try {
-        const row = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'").get();
-        const createSql = row && row.sql ? row.sql : '';
-        if (createSql.includes("'receptionist'")) {
-            return; // already compatible
-        }
-
-        // Perform table migration to widen CHECK constraint
-        db.pragma('foreign_keys = OFF');
-        const tx = db.transaction(() => {
-            db.exec(`CREATE TABLE IF NOT EXISTS users_migrating (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                role TEXT NOT NULL CHECK(role IN ('admin','nurse','kitchen','delivery','receptionist')),
-                full_name TEXT NOT NULL
-            );`);
-
-            // Copy data
-            db.exec(`INSERT OR IGNORE INTO users_migrating (id, username, password_hash, role, full_name)
-                     SELECT id, username, password_hash, role, full_name FROM users;`);
-
-            db.exec('DROP TABLE users');
-            db.exec('ALTER TABLE users_migrating RENAME TO users');
-        });
-        tx();
-    } finally {
-        db.pragma('foreign_keys = ON');
-    }
-}
-
-ensureUsersRoleAllowsReceptionist();
 
 function seedOnce() {
+	if (dbType !== 'sqlite' || !db) return;
+	
 	const userCount = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
 	if (userCount === 0) {
 		const hash = (pwd) => bcrypt.hashSync(pwd, 10);
@@ -159,15 +192,47 @@ function seedOnce() {
 		insertItem.run('Vegetable Soup', 'Dinner', 'Vegan');
 		insertItem.run('Fruit Salad', 'Snack', 'Gluten-Free');
 	}
+
+	// Insert sample orders if none exist
+	const orderCount = db.prepare('SELECT COUNT(*) as c FROM orders').get().c;
+	if (orderCount === 0) {
+		// Get sample user, patient, and menu item IDs
+		const user = db.prepare('SELECT id FROM users WHERE username = ?').get('nurse1');
+		const patient1 = db.prepare('SELECT id FROM patients WHERE mrn = ?').get('MRN-001');
+		const patient2 = db.prepare('SELECT id FROM patients WHERE mrn = ?').get('MRN-002');
+		const oatmeal = db.prepare('SELECT id FROM menu_items WHERE name = ?').get('Oatmeal');
+		const chicken = db.prepare('SELECT id FROM menu_items WHERE name = ?').get('Grilled Chicken');
+		const soup = db.prepare('SELECT id FROM menu_items WHERE name = ?').get('Vegetable Soup');
+		const salad = db.prepare('SELECT id FROM menu_items WHERE name = ?').get('Fruit Salad');
+
+		if (user && patient1 && patient2 && oatmeal && chicken && soup && salad) {
+			const insertOrder = db.prepare('INSERT INTO orders (patient_id, item_id, special_instructions, status, created_at, updated_at, created_by) VALUES (?,?,?,?,?,?,?)');
+			const now = nowIso();
+			insertOrder.run(patient1.id, oatmeal.id, 'No sugar', 'placed', now, now, user.id);
+			insertOrder.run(patient1.id, chicken.id, '', 'in_kitchen', now, now, user.id);
+			insertOrder.run(patient2.id, soup.id, 'Extra hot', 'out_for_delivery', now, now, user.id);
+			insertOrder.run(patient2.id, salad.id, '', 'delivered', now, now, user.id);
+		} else {
+			console.warn('Sample order data not inserted: missing user, patient, or menu item IDs');
+		}
+	}
 }
 
 function logAudit(entity, entityId, action, details, userId) {
+	if (dbType !== 'sqlite' || !db) {
+		console.warn('MySQL mode: logAudit should be handled by db-mysql.js');
+		return;
+	}
 	db.prepare(
 		'INSERT INTO audit_logs (entity, entity_id, action, details, user_id, created_at) VALUES (?,?,?,?,?,?)'
 	).run(entity, entityId, action, details || '', userId || null, nowIso());
 }
 
 function createOrder({ patientId, itemId, specialInstructions, userId }) {
+	if (dbType !== 'sqlite' || !db) {
+		console.warn('MySQL mode: createOrder should be handled by db-mysql.js');
+		return null;
+	}
 	const ts = nowIso();
 	const stmt = db.prepare(
 		'INSERT INTO orders (patient_id, item_id, special_instructions, status, created_at, updated_at, created_by) VALUES (?,?,?,?,?,?,?)'
@@ -288,8 +353,27 @@ function getPatientById(id) {
 	return db.prepare('SELECT * FROM patients WHERE id = ?').get(id);
 }
 
+// Get user by username function
 function getUserByUsername(username) {
-	return db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+	if (!username) return null;
+	if (dbType === 'mysql') {
+		// For MySQL, this will be handled by db-mysql.js
+		console.warn('MySQL mode: getUserByUsername should be called from db-mysql.js');
+		return null;
+	}
+	const stmt = db.prepare('SELECT id, username, password_hash, role, full_name FROM users WHERE username = ?');
+	const user = stmt.get(username);
+	if (user) {
+		// Normalize field name to match what server.js expects
+		return {
+			id: user.id,
+			username: user.username,
+			password_hash: user.password_hash,
+			role: user.role,
+			full_name: user.full_name
+		};
+	}
+	return null;
 }
 
 function createPatient({ fullName, roomNumber, dietaryRestrictions, allergies, mrn }) {
@@ -351,6 +435,28 @@ function replaceMenuWithIndian() {
 		// Then delete menu items
 		db.exec('DELETE FROM menu_items');
 		// Insert new menu items
+		for (const it of items) insert.run(it.name, it.category, it.dietary);
+	});
+	tx();
+}
+
+function replaceMenuWithHospital() {
+	const items = [
+		{ name: 'Oatmeal', category: 'Breakfast', dietary: 'Vegetarian' },
+		{ name: 'Scrambled Eggs', category: 'Breakfast', dietary: 'High Protein' },
+		{ name: 'Whole Wheat Toast', category: 'Breakfast', dietary: 'Vegetarian' },
+		{ name: 'Chicken Soup', category: 'Lunch', dietary: 'High Protein' },
+		{ name: 'Steamed Vegetables', category: 'Lunch', dietary: 'Vegan' },
+		{ name: 'Grilled Fish', category: 'Lunch', dietary: '' },
+		{ name: 'Rice Porridge', category: 'Dinner', dietary: 'Vegetarian, Light' },
+		{ name: 'Baked Potato', category: 'Dinner', dietary: 'Vegetarian' },
+		{ name: 'Fruit Salad', category: 'Snack', dietary: 'Gluten-Free' },
+		{ name: 'Yogurt', category: 'Snack', dietary: 'Vegetarian' }
+	];
+	const insert = db.prepare('INSERT INTO menu_items (name, category, dietary) VALUES (?,?,?)');
+	const tx = db.transaction(() => {
+		db.exec('DELETE FROM orders');
+		db.exec('DELETE FROM menu_items');
 		for (const it of items) insert.run(it.name, it.category, it.dietary);
 	});
 	tx();
@@ -416,10 +522,17 @@ function updateTiffinOrderStatus(id, status, userId) {
 	logAudit('tiffin_order', id, 'status_changed', JSON.stringify({ status }), userId);
 }
 
-seedOnce();
+// Only seed if using SQLite
+if (dbType === 'sqlite') {
+	seedOnce();
+}
 
+// Export all functions and the db object
 module.exports = {
-	db,
+	// Database connection object (for SQLite)
+	db: dbType === 'sqlite' ? db : null,
+	
+	// Database functions
 	createOrder,
 	updateOrderStatus,
 	updateOrderConsumption,
@@ -437,8 +550,8 @@ module.exports = {
 	createPatient,
 	updatePatient,
 	deletePatient,
-	logAudit,
 	replaceMenuWithIndian,
+	logAudit,
 	// Tiffin Order Functions
 	createTiffinOrder,
 	updateTiffinOrder,

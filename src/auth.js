@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { getUserByUsername } = require('./db');
+const { getUserByUsername } = require('./db-mysql');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'hospital-meals-secret-key-change-in-production';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
@@ -338,14 +338,11 @@ function generateDeviceToken(userId, deviceInfo) {
 
 /**
  * Audit Logging for Authentication Events
+ * Note: Audit logging is handled in server.js routes directly
  */
 function logAuthEvent(event, userId, details, ip) {
-	const { logAudit } = require('./db');
-	logAudit('auth', userId, event, JSON.stringify({
-		...details,
-		ip,
-		timestamp: new Date().toISOString()
-	}), userId);
+	// Logging handled at route level in server.js
+	// This function is kept for backward compatibility
 }
 
 /**
