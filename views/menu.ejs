@@ -1,211 +1,376 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menu Management - Hospital Meals</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/styles.css">
-    <style>
-        body {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            font-family: 'Inter', sans-serif;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .header {
-            background: white;
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-        
-        .header h1 {
-            margin: 0;
-            color: #1a202c;
-            font-size: 28px;
-        }
-        
-        .menu-section {
-            background: white;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            overflow: hidden;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
-        
-        .section-title {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 25px;
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0;
-        }
-        
-        .menu-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-            padding: 25px;
-        }
-        
-        .menu-item {
-            background: #f8fafc;
-            border: 2px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 20px;
-            transition: all 0.3s ease;
-        }
-        
-        .menu-item:hover {
-            border-color: #667eea;
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
-            transform: translateY(-2px);
-        }
-        
-        .menu-item-name {
-            font-size: 16px;
-            font-weight: 600;
-            color: #1a202c;
-            margin: 0 0 10px 0;
-        }
-        
-        .menu-item-dietary {
-            font-size: 13px;
-            color: #718096;
-            background: #edf2f7;
-            padding: 6px 12px;
-            border-radius: 6px;
-            display: inline-block;
-            margin-top: 8px;
-        }
-        
-        .no-items {
-            text-align: center;
-            padding: 40px;
-            color: #718096;
-        }
-        
-        .btn-group {
-            display: flex;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 14px;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-        
-        .back-link {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-            margin-bottom: 20px;
-            display: inline-block;
-        }
-        
-        .back-link:hover {
-            text-decoration: underline;
-        }
-        
-        @media (max-width: 768px) {
-            .menu-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .header {
-                padding: 20px;
-            }
-            
-            .header h1 {
-                font-size: 22px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <a href="/dashboard" class="back-link">← Back to Dashboard</a>
-        
-        <div class="header">
-            <h1>🍽️ Menu Management</h1>
-            <p>Current hospital meal menu items</p>
-        </div>
-        
-        <% if (menu && menu.length > 0) { %>
-            <% 
-                const categories = {};
-                menu.forEach(item => {
-                    if (!categories[item.category]) {
-                        categories[item.category] = [];
-                    }
-                    categories[item.category].push(item);
-                });
-            %>
-            
-            <% Object.keys(categories).sort().forEach(category => { %>
-                <div class="menu-section">
-                    <h2 class="section-title"><%= category %></h2>
-                    <div class="menu-grid">
-                        <% categories[category].forEach(item => { %>
-                            <div class="menu-item">
-                                <h3 class="menu-item-name"><%= item.name %></h3>
-                                <% if (item.dietary) { %>
-                                    <span class="menu-item-dietary"><%= item.dietary %></span>
-                                <% } %>
-                            </div>
-                        <% }); %>
-                    </div>
-                </div>
-            <% }); %>
-            
-            <div class="menu-section" style="margin-top: 30px;">
-                <div style="padding: 25px;">
-                    <h3 style="margin-top: 0; color: #1a202c;">Menu Actions</h3>
-                    <form method="POST" action="/admin/menu/indian" style="display: inline;">
-                        <button type="submit" class="btn btn-primary">
-                            🔄 Replace with Indian Menu
-                        </button>
-                    </form>
-                </div>
-            </div>
-        <% } else { %>
-            <div class="menu-section">
-                <div class="no-items">
-                    <h3>No menu items available</h3>
-                    <p>Click below to load the default Indian menu</p>
-                    <form method="POST" action="/admin/menu/indian" style="display: inline;">
-                        <button type="submit" class="btn btn-primary">
-                            Load Default Menu
-                        </button>
-                    </form>
-                </div>
-            </div>
-        <% } %>
-    </div>
-</body>
-</html>
+<% const title = 'Menu Management'; %>
+
+<style>
+	.menu-header {
+		margin-bottom: 2rem;
+	}
+
+	.menu-title {
+		font-size: 1.75rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.menu-subtitle {
+		font-size: 0.95rem;
+		color: var(--text-secondary);
+		margin: 0;
+	}
+
+	.category-section {
+		margin-bottom: 2.5rem;
+	}
+
+	.category-header {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-bottom: 1.5rem;
+		padding-bottom: 1rem;
+		border-bottom: 3px solid var(--primary);
+	}
+
+	.category-icon {
+		font-size: 1.5rem;
+	}
+
+	.category-name {
+		font-size: 1.35rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin: 0;
+	}
+
+	.menu-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+		gap: 1.5rem;
+	}
+
+	.menu-card {
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+		overflow: hidden;
+		transition: all 0.3s ease;
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+	}
+
+	.menu-card:hover {
+		border-color: var(--primary);
+		box-shadow: var(--shadow-md);
+		transform: translateY(-4px);
+	}
+
+	.menu-card-header {
+		padding: 1.25rem;
+		background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+		border-bottom: 1px solid var(--border);
+	}
+
+	.menu-item-name {
+		font-size: 1.1rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin: 0 0 0.75rem 0;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.food-icon {
+		font-size: 1.25rem;
+	}
+
+	.menu-card-body {
+		padding: 1.25rem;
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.menu-info {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		font-size: 0.9rem;
+	}
+
+	.info-row {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		color: var(--text-secondary);
+	}
+
+	.info-icon {
+		color: var(--primary);
+		min-width: 18px;
+		text-align: center;
+	}
+
+	.dietary-badges {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.4rem 0.8rem;
+		border-radius: 0.35rem;
+		font-size: 0.75rem;
+		font-weight: 600;
+		text-transform: capitalize;
+	}
+
+	.badge-vegetarian {
+		background: #d1fae5;
+		color: #065f46;
+	}
+
+	.badge-vegan {
+		background: #dcfce7;
+		color: #166534;
+	}
+
+	.badge-diabetic {
+		background: #fef08a;
+		color: #854d0e;
+	}
+
+	.badge-lowsodium {
+		background: #fce7f3;
+		color: #831843;
+	}
+
+	.badge-glutenfree {
+		background: #f3e8ff;
+		color: #581c87;
+	}
+
+	.empty-state {
+		text-align: center;
+		padding: 3rem 2rem;
+		background: var(--bg-card);
+		border: 1px dashed var(--border);
+		border-radius: 0.75rem;
+		color: var(--text-secondary);
+	}
+
+	.empty-state-emoji {
+		font-size: 3rem;
+		margin-bottom: 1rem;
+	}
+
+	.empty-state-title {
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: var(--text-primary);
+		margin-bottom: 0.5rem;
+	}
+
+	.menu-actions {
+		margin-top: 2rem;
+		padding: 1.5rem;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+	}
+
+	.menu-actions title {
+		font-size: 1.15rem;
+		font-weight: 700;
+		margin-bottom: 1rem;
+		display: block;
+	}
+
+	@media (max-width: 768px) {
+		.menu-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.menu-title {
+			font-size: 1.4rem;
+		}
+
+		.category-name {
+			font-size: 1.1rem;
+		}
+	}
+</style>
+
+<!-- Menu Header -->
+<div class="menu-header">
+	<h1 class="menu-title">
+		<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<circle cx="7" cy="11" r="3"></circle>
+			<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+			<circle cx="17" cy="7" r="3"></circle>
+		</svg>
+		Hospital Menu
+	</h1>
+	<p class="menu-subtitle">Nutritious meals designed for patient wellness and recovery</p>
+</div>
+
+<% if (menu && menu.length > 0) { %>
+	<% 
+		const categories = {};
+		menu.forEach(item => {
+			if (!categories[item.category]) {
+				categories[item.category] = [];
+			}
+			categories[item.category].push(item);
+		});
+
+		// Define category icons and descriptions
+		const categoryInfo = {
+			'Breakfast': { icon: '🌅', description: 'Light & nutritious morning meals' },
+			'Lunch': { icon: '🍽️', description: 'Balanced lunch options' },
+			'Dinner': { icon: '🌙', description: 'Light evening meals for better digestion' },
+			'Snack': { icon: '🥤', description: 'Healthy beverages & light snacks' },
+			'Dessert': { icon: '🍮', description: 'Light desserts for recovery' }
+		};
+
+		// Map dietary types to badge styles
+		const dietaryMap = {
+			'Vegetarian': 'badge-vegetarian',
+			'Vegan': 'badge-vegan',
+			'Diabetic': 'badge-diabetic',
+			'Low Sodium': 'badge-lowsodium',
+			'Gluten Free': 'badge-glutenfree'
+		};
+
+		// Food icons for items
+		const foodIcons = {
+			'Oatmeal': '🥣', 'Rice': '🍚', 'Wheat': '🌾', 'Chicken': '🍗', 'Fish': '🐟',
+			'Dal': '🍲', 'Vegetables': '🥦', 'Fruits': '🍎', 'Salad': '🥗', 'Soup': '🥘',
+			'Smoothie': '🥤', 'Juice': '🧃', 'Tea': '☕', 'Milk': '🥛', 'Yogurt': '🍯'
+		};
+	%>
+
+	<% Object.keys(categories).sort().forEach(category => { %>
+		<div class="category-section">
+			<!-- Category Header -->
+			<div class="category-header">
+				<span class="category-icon"><%= (categoryInfo[category] && categoryInfo[category].icon) || '🍽️' %></span>
+				<div>
+					<h2 class="category-name"><%= category %></h2>
+				</div>
+			</div>
+
+			<!-- Menu Items Grid -->
+			<div class="menu-grid">
+				<% categories[category].forEach(item => { %>
+					<div class="menu-card">
+						<!-- Card Header -->
+						<div class="menu-card-header">
+							<h3 class="menu-item-name">
+								<span class="food-icon">
+									<% 
+										let icon = '🍴';
+										for (let key in foodIcons) {
+											if (item.name.toLowerCase().includes(key.toLowerCase())) {
+												icon = foodIcons[key];
+												break;
+											}
+										}
+									%>
+									<%= icon %>
+								</span>
+								<%= item.name %>
+							</h3>
+						</div>
+
+						<!-- Card Body -->
+						<div class="menu-card-body">
+							<!-- Dietary Information -->
+							<% if (item.dietary) { %>
+								<div>
+									<div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">
+										📋 Dietary Info
+									</div>
+									<div class="dietary-badges">
+										<% 
+											const dietary = item.dietary.split(',').map(d => d.trim());
+											dietary.forEach(d => {
+												const badgeClass = dietaryMap[d] || 'badge-vegetarian';
+										%>
+											<span class="badge <%= badgeClass %>">
+												<% if (d.toLowerCase().includes('vegan')) { %>✓<% } %>
+												<% if (d.toLowerCase().includes('vegetarian')) { %>🌱<% } %>
+												<% if (d.toLowerCase().includes('diabetic')) { %>🩺<% } %>
+												<% if (d.toLowerCase().includes('sodium')) { %>♡<% } %>
+												<% if (d.toLowerCase().includes('gluten')) { %>🚫<% } %>
+												<%= d %>
+											</span>
+										<% }); %>
+									</div>
+								</div>
+							<% } %>
+
+							<!-- Health Benefits -->
+							<div>
+								<div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">
+									✨ Benefits for Recovery
+								</div>
+								<div class="menu-info">
+									<div class="info-row">
+										<span class="info-icon">⚡</span>
+										<span>High in essential nutrients</span>
+									</div>
+									<div class="info-row">
+										<span class="info-icon">💪</span>
+										<span>Supports muscle recovery</span>
+									</div>
+									<div class="info-row">
+										<span class="info-icon">🔄</span>
+										<span>Aids digestion</span>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				<% }); %>
+			</div>
+		</div>
+	<% }); %>
+
+	<!-- Menu Actions -->
+	<div class="menu-actions">
+		<strong style="font-size: 1.15rem; color: var(--text-primary); display: block; margin-bottom: 1rem;">⚙️ Menu Management</strong>
+		<form method="POST" action="/admin/menu/indian" style="display: inline;">
+			<button type="submit" class="btn btn-primary">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; margin-right: 0.5rem;">
+					<path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"></path>
+				</svg>
+				Refresh Hospital Menu
+			</button>
+		</form>
+	</div>
+
+<% } else { %>
+	<!-- Empty State -->
+	<div class="empty-state">
+		<div class="empty-state-emoji">🍽️</div>
+		<div class="empty-state-title">No Menu Items Available</div>
+		<p>Load the default hospital menu to get started</p>
+		<form method="POST" action="/admin/menu/indian" style="display: inline; margin-top: 1rem;">
+			<button type="submit" class="btn btn-primary">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: inline; margin-right: 0.5rem;">
+					<path d="M12 5v14M5 12h14"></path>
+				</svg>
+				Load Hospital Menu
+			</button>
+		</form>
+	</div>
+<% } %>

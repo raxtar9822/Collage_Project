@@ -21,6 +21,7 @@ const {
 } = require('./auth');
 
 const RealtimeManager = require('./realtime');
+const { validatePatient } = require('./validators');
 
 // Use MySQL if configured, otherwise use SQLite
 const USE_MYSQL = process.env.DB_TYPE === 'mysql' || process.env.DB_DRIVER === 'mysql';
@@ -293,25 +294,124 @@ app.get('/admin/patients', requireAuth, requireRole(['admin']), async (req, res)
 });
 
 app.get('/admin/patients/new', requireAuth, requireRole(['admin']), (req, res) => {
-	res.render('patient_form', { user: req.session.user, patient: null, action: 'Create' });
+	res.render('patient_form', { 
+		user: req.session.user, 
+		patient: null, 
+		action: 'Create',
+		validationFailed: false,
+		errors: null,
+		formData: null
+	});
 });
 
 app.post('/admin/patients/new', requireAuth, requireRole(['admin']), async (req, res) => {
-	const { full_name, room_number, dietary_restrictions, allergies } = req.body;
-	await createPatient({ fullName: full_name, roomNumber: room_number, dietaryRestrictions: dietary_restrictions, allergies });
-	res.redirect('/admin/patients');
+	const { full_name, room_number, ward, dietary_restrictions, allergies, mrn } = req.body;
+	
+	// Server-side validation
+	const validation = validatePatient({
+		full_name,
+		room_number,
+		ward: ward || room_number, // Use room_number as fallback for ward
+		dietary_restrictions,
+		allergies,
+		mrn
+	});
+
+	if (!validation.isValid) {
+		// Return error response - re-render form with errors
+		const patients = await getPatients();
+		return res.status(400).render('patient_form', {
+			user: req.session.user,
+			patient: null,
+			action: 'Create',
+			errors: validation.errors,
+			formData: req.body,
+			validationFailed: true
+		});
+	}
+
+	try {
+		await createPatient({
+			fullName: full_name.trim(),
+			roomNumber: room_number.trim(),
+			dietaryRestrictions: dietary_restrictions ? dietary_restrictions.trim() : '',
+			allergies: allergies ? allergies.trim() : '',
+			mrn: mrn ? mrn.trim() : null
+		});
+		res.redirect('/admin/patients');
+	} catch (error) {
+		console.error('Error creating patient:', error);
+		return res.status(500).render('patient_form', {
+			user: req.session.user,
+			patient: null,
+			action: 'Create',
+			errors: { general: ['Failed to create patient. Please try again.'] },
+			formData: req.body,
+			validationFailed: true
+		});
+	}
 });
 
 app.get('/admin/patients/:id/edit', requireAuth, requireRole(['admin']), async (req, res) => {
 	const patient = await getPatientById(Number(req.params.id));
 	if (!patient) return res.status(404).send('Not found');
-	res.render('patient_form', { user: req.session.user, patient, action: 'Update' });
+	res.render('patient_form', { 
+		user: req.session.user, 
+		patient, 
+		action: 'Update',
+		validationFailed: false,
+		errors: null,
+		formData: null
+	});
 });
 
 app.post('/admin/patients/:id/edit', requireAuth, requireRole(['admin']), async (req, res) => {
-	const { full_name, room_number, dietary_restrictions, allergies } = req.body;
-	await updatePatient(Number(req.params.id), { fullName: full_name, roomNumber: room_number, dietaryRestrictions: dietary_restrictions, allergies });
-	res.redirect('/admin/patients');
+	const { full_name, room_number, ward, dietary_restrictions, allergies, mrn } = req.body;
+	const patientId = Number(req.params.id);
+
+	// Server-side validation
+	const validation = validatePatient({
+		full_name,
+		room_number,
+		ward: ward || room_number, // Use room_number as fallback for ward
+		dietary_restrictions,
+		allergies,
+		mrn
+	});
+
+	if (!validation.isValid) {
+		// Get patient data and re-render form with errors
+		const patient = await getPatientById(patientId);
+		return res.status(400).render('patient_form', {
+			user: req.session.user,
+			patient,
+			action: 'Update',
+			errors: validation.errors,
+			formData: req.body,
+			validationFailed: true
+		});
+	}
+
+	try {
+		await updatePatient(patientId, {
+			fullName: full_name.trim(),
+			roomNumber: room_number.trim(),
+			dietaryRestrictions: dietary_restrictions ? dietary_restrictions.trim() : '',
+			allergies: allergies ? allergies.trim() : ''
+		});
+		res.redirect('/admin/patients');
+	} catch (error) {
+		console.error('Error updating patient:', error);
+		const patient = await getPatientById(patientId);
+		return res.status(500).render('patient_form', {
+			user: req.session.user,
+			patient,
+			action: 'Update',
+			errors: { general: ['Failed to update patient. Please try again.'] },
+			formData: req.body,
+			validationFailed: true
+		});
+	}
 });
 
 app.post('/admin/patients/:id/delete', requireAuth, requireRole(['admin']), async (req, res) => {

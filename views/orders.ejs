@@ -1,90 +1,406 @@
 <% const title = 'Orders'; %>
-<div class="grid">
-	<div class="card">
-		<h2>All Orders</h2>
-		<table>
-			<thead>
-				<tr>
-					<th>ID</th>
-					<th>Patient</th>
-					<th>Room</th>
-					<th>Dietary / Allergies</th>
-					<th>Item</th>
-					<th>Status</th>
-					<th>Actions</th>
-				</tr>
-			</thead>
-			<tbody>
-				<% orders.forEach(o => { %>
-				<tr>
-					<td><%= o.id %></td>
-					<td><%= o.patient_name %></td>
-					<td><%= o.room_number || '' %></td>
-					<td><%= (o.dietary_restrictions || '') %><% if (o.allergies) { %> / <strong><%= o.allergies %></strong><% } %></td>
-					<td><%= o.item_name %></td>
-					<td><%= o.status %></td>
-					<td>
-						<% if (['kitchen','admin'].includes(user.role) && o.status === 'placed') { %>
+
+<style>
+	.section-title {
+		font-size: 1.75rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin-bottom: 1.5rem;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	/* Orders List */
+	.orders-container {
+		display: grid;
+		gap: 1rem;
+		margin-bottom: 2rem;
+	}
+
+	.order-card {
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+		overflow: hidden;
+		transition: all 0.3s ease;
+		cursor: pointer;
+	}
+
+	.order-card:hover {
+		border-color: var(--primary);
+		box-shadow: var(--shadow-md);
+		transform: translateY(-2px);
+	}
+
+	.order-header {
+		padding: 1.25rem;
+		background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+		border-bottom: 1px solid var(--border);
+		display: grid;
+		grid-template-columns: auto 1fr auto auto auto;
+		gap: 1rem;
+		align-items: center;
+	}
+
+	.order-id {
+		font-weight: 700;
+		color: var(--primary);
+		font-size: 1.1rem;
+	}
+
+	.order-patient {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+
+	.patient-name {
+		font-weight: 600;
+		color: var(--text-primary);
+	}
+
+	.patient-room {
+		font-size: 0.85rem;
+		color: var(--text-secondary);
+	}
+
+	.order-item {
+		font-weight: 500;
+		color: var(--text-primary);
+	}
+
+	.status-badge {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.5rem 1rem;
+		border-radius: 0.5rem;
+		font-size: 0.85rem;
+		font-weight: 600;
+		text-transform: capitalize;
+		white-space: nowrap;
+	}
+
+	.status-badge.placed {
+		background: #e0f2fe;
+		color: #0369a1;
+	}
+
+	.status-badge.in_kitchen {
+		background: #fef3c7;
+		color: #92400e;
+	}
+
+	.status-badge.out_for_delivery {
+		background: #dbeafe;
+		color: #1e40af;
+	}
+
+	.status-badge.delivered {
+		background: #d1fae5;
+		color: #065f46;
+	}
+
+	.status-badge::before {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		background: currentColor;
+		opacity: 0.6;
+	}
+
+	.order-actions {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	.order-details {
+		padding: 1.25rem;
+		background: var(--bg-card);
+		border-top: 1px solid var(--border);
+	}
+
+	.detail-row {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 1rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.detail-row:last-child {
+		margin-bottom: 0;
+	}
+
+	.detail-label {
+		font-weight: 600;
+		color: var(--text-secondary);
+		font-size: 0.85rem;
+	}
+
+	.detail-value {
+		color: var(--text-primary);
+	}
+
+	.alert-box {
+		background: #fee2e2;
+		border-left: 4px solid var(--danger);
+		padding: 0.75rem;
+		border-radius: 0.35rem;
+		font-size: 0.85rem;
+		color: #7f1d1d;
+	}
+
+	.alert-box strong {
+		display: block;
+		color: var(--danger);
+		margin-bottom: 0.25rem;
+	}
+
+	.btn-action {
+		padding: 0.55rem 1rem;
+		border: none;
+		border-radius: 0.35rem;
+		font-size: 0.85rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.2s ease;
+		white-space: nowrap;
+	}
+
+	.btn-action.primary {
+		background: var(--primary);
+		color: white;
+	}
+
+	.btn-action.primary:hover {
+		background: var(--primary-dark);
+		transform: translateY(-1px);
+		box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+	}
+
+	.btn-action.secondary {
+		background: var(--border);
+		color: var(--text-primary);
+	}
+
+	.btn-action.secondary:hover {
+		background: #d1d5db;
+	}
+
+	.btn-action.success {
+		background: var(--success);
+		color: white;
+	}
+
+	.btn-action.success:hover {
+		background: #059669;
+		transform: translateY(-1px);
+		box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+	}
+
+	.form-inline {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.select-consumption {
+		padding: 0.5rem 0.75rem;
+		border: 1px solid var(--border);
+		border-radius: 0.35rem;
+		font-size: 0.85rem;
+		background: var(--bg-card);
+	}
+
+	/* Create Order Section */
+	.create-order-section {
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+		padding: 1.5rem;
+	}
+
+	.create-order-title {
+		font-size: 1.25rem;
+		font-weight: 700;
+		color: var(--text-primary);
+		margin-bottom: 1.5rem;
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		gap: 1rem;
+		margin-bottom: 1rem;
+	}
+
+	.form-row.full {
+		grid-template-columns: 1fr;
+	}
+
+	@media (max-width: 768px) {
+		.order-header {
+			grid-template-columns: 1fr;
+		}
+
+		.order-actions {
+			flex-wrap: wrap;
+		}
+
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
+
+<!-- Orders Section Header -->
+<div class="section-title">
+	<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+		<circle cx="9" cy="21" r="1"></circle>
+		<circle cx="20" cy="21" r="1"></circle>
+		<path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+	</svg>
+	All Orders
+</div>
+
+<!-- Orders List -->
+<div class="orders-container">
+	<% if (orders.length === 0) { %>
+		<div class="card" style="padding: 2rem; text-align: center;">
+			<div style="font-size: 2rem; margin-bottom: 1rem;">📭</div>
+			<p style="color: var(--text-secondary); margin: 0;">No orders found</p>
+		</div>
+	<% } else { %>
+		<% orders.forEach(o => { %>
+		<div class="order-card">
+			<div class="order-header">
+				<div class="order-id">#<%= o.id %></div>
+				<div class="order-patient">
+					<div class="patient-name"><%= o.patient_name %></div>
+					<div class="patient-room">Room: <%= o.room_number || 'N/A' %></div>
+				</div>
+				<div class="order-item"><%= o.item_name %></div>
+				<span class="status-badge <%= o.status %>"><%= o.status.replace(/_/g, ' ') %></span>
+				<div class="order-actions">
+					<% if (['kitchen','admin'].includes(user.role) && o.status === 'placed') { %>
 						<form method="post" action="/orders/<%= o.id %>/status" style="display:inline">
 							<input type="hidden" name="status" value="in_kitchen" />
-							<button>Start</button>
+							<button class="btn-action primary">Start</button>
 						</form>
-						<% } %>
-						<% if (['kitchen','admin'].includes(user.role) && o.status === 'in_kitchen') { %>
+					<% } %>
+					<% if (['kitchen','admin'].includes(user.role) && o.status === 'in_kitchen') { %>
 						<form method="post" action="/orders/<%= o.id %>/status" style="display:inline">
 							<input type="hidden" name="status" value="out_for_delivery" />
-							<button>Send</button>
+							<button class="btn-action primary">Send</button>
 						</form>
-						<% } %>
-						<% if (['delivery','admin'].includes(user.role) && o.status === 'out_for_delivery') { %>
+					<% } %>
+					<% if (['delivery','admin'].includes(user.role) && o.status === 'out_for_delivery') { %>
 						<form method="post" action="/orders/<%= o.id %>/status" style="display:inline">
 							<input type="hidden" name="status" value="delivered" />
-							<button>Delivered</button>
+							<button class="btn-action success">Delivered</button>
 						</form>
-						<% } %>
-						<% if (['delivery','admin'].includes(user.role) && o.status === 'delivered') { %>
-						<form method="post" action="/orders/<%= o.id %>/consumption" style="display:inline;margin-left:6px">
-							<select name="consumption_status" required>
-								<option value="" disabled selected>Consumption...</option>
+					<% } %>
+					<% if (['delivery','admin'].includes(user.role) && o.status === 'delivered') { %>
+						<form method="post" action="/orders/<%= o.id %>/consumption" style="display:inline" class="form-inline">
+							<select name="consumption_status" class="select-consumption" required>
+								<option value="" disabled selected>Consumption</option>
 								<option value="eaten">Eaten</option>
 								<option value="partial">Partial</option>
 								<option value="refused">Refused</option>
 							</select>
-							<button style="margin-left:6px">Save</button>
+							<button class="btn-action success">Save</button>
 						</form>
-						<% } %>
-					</td>
-				</tr>
-				<% }) %>
-			</tbody>
-		</table>
-	</div>
+					<% } %>
+				</div>
+			</div>
 
-	<% if (['nurse','admin'].includes(user.role)) { %>
-	<div class="card">
-		<h2>Create Order</h2>
-		<form method="post" action="/orders">
-			<label>Patient
-				<select name="patient_id" required>
-					<option value="" disabled selected>Select patient</option>
+			<!-- Order Details -->
+			<div class="order-details">
+				<% if (o.dietary_restrictions || o.allergies) { %>
+					<% if (o.dietary_restrictions) { %>
+						<div class="detail-row">
+							<div class="detail-label">🥗 Dietary:</div>
+							<div class="detail-value"><%= o.dietary_restrictions %></div>
+						</div>
+					<% } %>
+					<% if (o.allergies) { %>
+						<div class="detail-row">
+							<div class="detail-label">⚠️ Allergies:</div>
+							<div class="alert-box">
+								<strong>Important:</strong> <%= o.allergies %>
+							</div>
+						</div>
+					<% } %>
+				<% } %>
+				<% if (o.special_instructions) { %>
+					<div class="detail-row">
+						<div class="detail-label">📝 Instructions:</div>
+						<div class="detail-value"><%= o.special_instructions %></div>
+					</div>
+				<% } %>
+				<div class="detail-row">
+					<div class="detail-label">📅 Created:</div>
+					<div class="detail-value"><%= dayjs(o.created_at).format('MMM DD, YYYY HH:mm') %></div>
+				</div>
+			</div>
+		</div>
+		<% }) %>
+	<% } %>
+</div>
+
+<!-- Create Order Section -->
+<% if (['nurse','admin'].includes(user.role)) { %>
+<div class="create-order-section">
+	<h2 class="create-order-title">
+		<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+			<path d="M12 5v14M5 12h14"></path>
+		</svg>
+		Create New Order
+	</h2>
+
+	<form method="post" action="/orders">
+		<div class="form-row">
+			<div class="form-group">
+				<label for="patient" class="form-label">Patient *</label>
+				<select id="patient" name="patient_id" class="form-select" required>
+					<option value="" disabled selected>Select patient...</option>
 					<% patients.forEach(p => { %>
-					<option value="<%= p.id %>"><%= p.full_name %> - Room <%= p.room_number || 'N/A' %><% if (p.dietary_restrictions) { %> - <%= p.dietary_restrictions %><% } %><% if (p.allergies) { %> - A:<%= p.allergies %><% } %></option>
+					<option value="<%= p.id %>">
+						<%= p.full_name %> - Room <%= p.room_number || 'N/A' %>
+						<% if (p.dietary_restrictions) { %> (Diet: <%= p.dietary_restrictions %><% } %><% if (p.allergies) { %>, Allergy: <%= p.allergies %><% } %><% if (p.dietary_restrictions || p.allergies) { %>)<% } %>
+					</option>
 					<% }) %>
 				</select>
-			</label>
-			<label>Menu Item
-				<select name="item_id" required>
-					<option value="" disabled selected>Select item</option>
+			</div>
+
+			<div class="form-group">
+				<label for="item" class="form-label">Menu Item *</label>
+				<select id="item" name="item_id" class="form-select" required>
+					<option value="" disabled selected>Select item...</option>
 					<% menu.forEach(m => { %>
 					<option value="<%= m.id %>"><%= m.name %> (<%= m.category %>)</option>
 					<% }) %>
 				</select>
-			</label>
-			<label>Instructions
-				<textarea name="special_instructions" rows="2"></textarea>
-			</label>
-			<button type="submit">Place Order</button>
-		</form>
-	</div>
-	<% } %>
+			</div>
+		</div>
+
+		<div class="form-row full">
+			<div class="form-group">
+				<label for="instructions" class="form-label">Special Instructions</label>
+				<textarea id="instructions" name="special_instructions" class="form-input" rows="3" placeholder="e.g., No sugar, extra sauce, etc."></textarea>
+			</div>
+		</div>
+
+		<button type="submit" class="btn btn-primary">
+			<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline; margin-right: 0.5rem;">
+				<path d="M12 5v14M5 12h14"></path>
+			</svg>
+			Place Order
+		</button>
+	</form>
 </div>
+<% } %>

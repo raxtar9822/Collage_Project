@@ -1,20 +1,777 @@
 <% const title = (action === 'Create' ? 'New' : 'Edit') + ' Patient'; %>
-<div class="card">
-	<h2><%= action %> Patient</h2>
-	<form method="post">
-		<label>Full Name
-			<input name="full_name" value="<%= patient ? patient.full_name : '' %>" required />
-		</label>
-		<label>Room Number
-			<input name="room_number" value="<%= patient ? patient.room_number : '' %>" />
-		</label>
-		<label>Dietary Restrictions
-			<input name="dietary_restrictions" value="<%= patient ? (patient.dietary_restrictions || '') : '' %>" />
-		</label>
-		<label>Known Allergies
-			<input name="allergies" value="<%= patient ? (patient.allergies || '') : '' %>" />
-		</label>
-		<button type="submit"><%= action %></button>
-		<a href="/admin/patients"><button type="button">Cancel</button></a>
+
+<%
+// Helper function to format field names
+function formatFieldName(field) {
+	const mapping = {
+		'fullName': 'Full Name',
+		'full_name': 'Full Name',
+		'mrn': 'MRN',
+		'ward': 'Ward',
+		'roomNumber': 'Room Number',
+		'room_number': 'Room Number',
+		'dietaryRestrictions': 'Dietary Restrictions',
+		'dietary_restrictions': 'Dietary Restrictions',
+		'allergies': 'Allergies'
+	};
+	return mapping[field] || field;
+}
+%>
+
+<div class="patient-form-container">
+	<div class="patient-form-header">
+		<h2><%= action %> Patient</h2>
+		<p class="form-subtitle">
+			<% if (action === 'Create') { %>
+				Add a new patient to the hospital system
+			<% } else { %>
+				Update patient information
+			<% } %>
+		</p>
+	</div>
+
+	<form id="patientForm" method="post" class="patient-form">
+		<!-- Server-side Validation Errors (displayed if form validation failed) -->
+		<% if (typeof validationFailed !== 'undefined' && validationFailed && errors) { %>
+		<div class="form-errors server-errors">
+			<div class="error-header">
+				<i class="error-icon">⚠️</i>
+				<strong>Validation errors occurred:</strong>
+			</div>
+			<ul class="errorsList">
+				<% 
+					Object.entries(errors).forEach(([field, errorArray]) => {
+						if (Array.isArray(errorArray)) {
+							errorArray.forEach(error => {
+				%>
+					<li><strong><%= formatFieldName(field) %>:</strong> <%= error %></li>
+				<% 
+							});
+						}
+					});
+				%>
+			</ul>
+		</div>
+		<% } %>
+
+		<!-- Form Validation Errors -->
+		<div id="formErrors" class="form-errors" style="display: none;">
+			<div class="error-header">
+				<i class="error-icon">⚠️</i>
+				<strong>Please fix the following errors:</strong>
+			</div>
+			<ul id="errorsList"></ul>
+		</div>
+
+		<!-- Form Validation Success Message -->
+		<div id="formSuccess" class="form-success" style="display: none;">
+			<i class="success-icon">✓</i>
+			<strong>All validations passed!</strong>
+		</div>
+
+		<!-- Patient Details Section -->
+		<div class="form-section">
+			<h3 class="section-title">Patient Details</h3>
+			
+			<!-- Full Name -->
+			<div class="form-group">
+				<label for="fullName" class="form-label">
+					Full Name
+					<span class="required-indicator">*</span>
+				</label>
+				<div class="input-wrapper">
+					<input 
+						type="text" 
+						id="fullName" 
+						name="full_name" 
+						class="form-input"
+						placeholder="Enter patient's full name"
+						value="<%= (typeof formData !== 'undefined' && formData && formData.full_name) ? formData.full_name : (patient ? patient.full_name : '') %>" 
+						required
+						maxlength="100"
+					/>
+					<span class="char-count">
+						<span id="fullNameCount">0</span>/100
+					</span>
+				</div>
+				<div id="fullNameError" class="field-error"></div>
+				<small class="field-hint">Letters, spaces, hyphens, and apostrophes only. Min 3 characters.</small>
+			</div>
+
+			<!-- MRN (Medical Record Number) -->
+			<div class="form-group">
+				<label for="mrn" class="form-label">
+					MRN (Medical Record Number)
+					<span class="optional-indicator">(Optional)</span>
+				</label>
+				<div class="input-wrapper">
+					<input 
+						type="text" 
+						id="mrn" 
+						name="mrn" 
+						class="form-input"
+						placeholder="Auto-generated if left empty (e.g., MRN-123456)"
+						value="<%= (typeof formData !== 'undefined' && formData && formData.mrn) ? formData.mrn : (patient ? (patient.mrn || '') : '') %>"
+						maxlength="20"
+					/>
+					<span class="char-count">
+						<span id="mrnCount">0</span>/20
+					</span>
+				</div>
+				<div id="mrnError" class="field-error"></div>
+				<small class="field-hint">Uppercase letters, numbers, or hyphens. Leave empty for auto-generation.</small>
+			</div>
+		</div>
+
+		<!-- Room & Ward Details Section -->
+		<div class="form-section">
+			<h3 class="section-title">Room & Ward Information</h3>
+			
+			<div class="form-row">
+				<!-- Ward -->
+				<div class="form-group form-group-half">
+					<label for="ward" class="form-label">
+						Ward
+						<span class="required-indicator">*</span>
+					</label>
+					<div class="input-wrapper">
+						<input 
+							type="text" 
+							id="ward" 
+							name="ward" 
+							class="form-input"
+							placeholder="e.g., ICU, General, Pediatrics"
+							value="<%= (typeof formData !== 'undefined' && formData && formData.ward) ? formData.ward : (patient ? (patient.ward || '') : '') %>"
+							maxlength="50"
+						/>
+						<span class="char-count">
+							<span id="wardCount">0</span>/50
+						</span>
+					</div>
+					<div id="wardError" class="field-error"></div>
+					<small class="field-hint">Ward name (e.g., ICU, General Ward)</small>
+				</div>
+
+				<!-- Room Number -->
+				<div class="form-group form-group-half">
+					<label for="roomNumber" class="form-label">
+						Room Number
+						<span class="required-indicator">*</span>
+					</label>
+					<div class="input-wrapper">
+						<input 
+							type="text" 
+							id="roomNumber" 
+							name="room_number" 
+							class="form-input"
+							placeholder="e.g., 101, A-5, ICU/3"
+							value="<%= (typeof formData !== 'undefined' && formData && formData.room_number) ? formData.room_number : (patient ? (patient.room_number || '') : '') %>"
+							maxlength="50"
+						/>
+						<span class="char-count">
+							<span id="roomNumberCount">0</span>/50
+						</span>
+					</div>
+					<div id="roomNumberError" class="field-error"></div>
+					<small class="field-hint">Room identifier with optional separators</small>
+				</div>
+			</div>
+		</div>
+
+		<!-- Medical Information Section -->
+		<div class="form-section">
+			<h3 class="section-title">Medical Information</h3>
+			
+			<!-- Dietary Restrictions -->
+			<div class="form-group">
+				<label for="dietaryRestrictions" class="form-label">
+					Dietary Restrictions
+					<span class="optional-indicator">(Optional)</span>
+				</label>
+				<div class="input-wrapper">
+					<textarea 
+						id="dietaryRestrictions" 
+						name="dietary_restrictions" 
+						class="form-input textarea"
+						placeholder="e.g., Vegetarian, Gluten-free, Low sodium, No dairy"
+						maxlength="500"
+						rows="3"
+					><%= (typeof formData !== 'undefined' && formData && formData.dietary_restrictions) ? formData.dietary_restrictions : (patient ? (patient.dietary_restrictions || '') : '') %></textarea>
+					<span class="char-count">
+						<span id="dietaryRestrictionsCount">0</span>/500
+					</span>
+				</div>
+				<div id="dietaryRestrictionsError" class="field-error"></div>
+				<small class="field-hint">Comma-separated list of dietary requirements</small>
+			</div>
+
+			<!-- Known Allergies -->
+			<div class="form-group">
+				<label for="allergies" class="form-label">
+					Known Allergies
+					<span class="optional-indicator">(Optional)</span>
+				</label>
+				<div class="input-wrapper">
+					<textarea 
+						id="allergies" 
+						name="allergies" 
+						class="form-input textarea"
+						placeholder="e.g., Peanuts, Shellfish, Penicillin, Latex"
+						maxlength="500"
+						rows="3"
+					><%= (typeof formData !== 'undefined' && formData && formData.allergies) ? formData.allergies : (patient ? (patient.allergies || '') : '') %></textarea>
+					<span class="char-count">
+						<span id="allergiesCount">0</span>/500
+					</span>
+				</div>
+				<div id="allergiesError" class="field-error"></div>
+				<small class="field-hint">Comma-separated list of known allergies (critical information)</small>
+			</div>
+		</div>
+
+		<!-- Form Actions -->
+		<div class="form-actions">
+			<button type="submit" class="btn btn-primary" id="submitBtn">
+				<span class="btn-icon">→</span>
+				<span class="btn-text"><%= action %> Patient</span>
+			</button>
+			<a href="/admin/patients" class="btn btn-secondary">
+				<span class="btn-icon">←</span>
+				<span class="btn-text">Cancel</span>
+			</a>
+		</div>
 	</form>
-</div> 
+</div>
+
+<style>
+	.patient-form-container {
+		max-width: 800px;
+		margin: 0 auto;
+		padding: 2rem;
+	}
+
+	.patient-form-header {
+		margin-bottom: 2rem;
+	}
+
+	.patient-form-header h2 {
+		font-size: 1.8rem;
+		margin: 0 0 0.5rem 0;
+		color: #2c3e50;
+	}
+
+	.form-subtitle {
+		margin: 0;
+		color: #7f8c8d;
+		font-size: 0.95rem;
+	}
+
+	/* Form Validation Messages */
+	.form-errors {
+		background-color: #fee;
+		border: 2px solid #f55;
+		border-radius: 8px;
+		padding: 1.2rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.form-errors.server-errors {
+		background-color: #ffe6e6;
+		border-color: #e74c3c;
+	}
+
+	.error-header {
+		font-size: 1rem;
+		color: #c33;
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+		margin-bottom: 0.8rem;
+	}
+
+	.error-icon {
+		font-size: 1.3rem;
+	}
+
+	#errorsList, .errorsList {
+		margin: 0;
+		padding-left: 2rem;
+		color: #c33;
+	}
+
+	#errorsList li, .errorsList li {
+		margin: 0.4rem 0;
+		font-size: 0.9rem;
+	}
+
+	.form-success {
+		background-color: #efe;
+		border: 2px solid #5f5;
+		border-radius: 8px;
+		padding: 1rem 1.2rem;
+		margin-bottom: 1.5rem;
+		color: #3a3;
+		display: flex;
+		align-items: center;
+		gap: 0.7rem;
+	}
+
+	.success-icon {
+		font-size: 1.3rem;
+	}
+
+	/* Form Sections */
+	.form-section {
+		margin-bottom: 2rem;
+		padding-bottom: 1.5rem;
+		border-bottom: 1px solid #e0e0e0;
+	}
+
+	.form-section:last-of-type {
+		border-bottom: none;
+	}
+
+	.section-title {
+		font-size: 1.1rem;
+		font-weight: 600;
+		color: #2c3e50;
+		margin: 0 0 1.2rem 0;
+		padding-bottom: 0.5rem;
+		border-bottom: 2px solid #3498db;
+		display: inline-block;
+	}
+
+	/* Form Groups */
+	.form-group {
+		margin-bottom: 1.5rem;
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.5rem;
+	}
+
+	.form-group-half {
+		margin-bottom: 0;
+	}
+
+	.form-label {
+		display: block;
+		font-weight: 600;
+		color: #2c3e50;
+		margin-bottom: 0.5rem;
+		font-size: 0.95rem;
+	}
+
+	.required-indicator {
+		color: #e74c3c;
+		font-weight: bold;
+	}
+
+	.optional-indicator {
+		color: #95a5a6;
+		font-size: 0.85rem;
+		font-weight: normal;
+	}
+
+	/* Input Wrapper */
+	.input-wrapper {
+		position: relative;
+		display: flex;
+		align-items: flex-start;
+	}
+
+	/* Form Inputs */
+	.form-input {
+		width: 100%;
+		padding: 0.75rem 0.95rem;
+		border: 2px solid #ddd;
+		border-radius: 6px;
+		font-size: 0.95rem;
+		font-family: inherit;
+		transition: all 0.3s ease;
+		background-color: #fafafa;
+	}
+
+	.textarea {
+		resize: vertical;
+		min-height: 100px;
+	}
+
+	.form-input:focus {
+		outline: none;
+		border-color: #3498db;
+		background-color: #fff;
+		box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+	}
+
+	.form-input.has-error {
+		border-color: #e74c3c;
+		background-color: #fef5f5;
+	}
+
+	.form-input.has-error:focus {
+		box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+	}
+
+	.form-input.is-valid {
+		border-color: #27ae60;
+		background-color: #f5fef5;
+	}
+
+	.form-input.is-valid:focus {
+		box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.1);
+	}
+
+	/* Character Count */
+	.char-count {
+		position: absolute;
+		right: 10px;
+		top: 50%;
+		transform: translateY(-50%);
+		font-size: 0.8rem;
+		color: #95a5a6;
+		background: white;
+		padding: 0 4px;
+	}
+
+	.textarea ~ .char-count {
+		top: auto;
+		bottom: 8px;
+		transform: none;
+	}
+
+	/* Field Validation */
+	.field-error {
+		color: #e74c3c;
+		font-size: 0.85rem;
+		margin-top: 0.4rem;
+		display: none;
+		font-weight: 500;
+	}
+
+	.field-error.show {
+		display: block;
+	}
+
+	.field-hint {
+		display: block;
+		color: #95a5a6;
+		font-size: 0.85rem;
+		margin-top: 0.4rem;
+	}
+
+	/* Form Actions */
+	.form-actions {
+		display: flex;
+		gap: 1rem;
+		margin-top: 2rem;
+		padding-top: 2rem;
+		border-top: 2px solid #e0e0e0;
+	}
+
+	.btn {
+		padding: 0.75rem 1.5rem;
+		border: none;
+		border-radius: 6px;
+		font-size: 0.95rem;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		text-decoration: none;
+		justify-content: center;
+	}
+
+	.btn-primary {
+		background-color: #3498db;
+		color: white;
+	}
+
+	.btn-primary:hover {
+		background-color: #2980b9;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+	}
+
+	.btn-primary:disabled {
+		background-color: #95a5a6;
+		cursor: not-allowed;
+		transform: none;
+		box-shadow: none;
+	}
+
+	.btn-secondary {
+		background-color: #95a5a6;
+		color: white;
+	}
+
+	.btn-secondary:hover {
+		background-color: #7f8c8d;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 12px rgba(149, 165, 166, 0.3);
+	}
+
+	.btn-icon {
+		font-size: 1.1rem;
+	}
+
+	/* Responsive Design */
+	@media (max-width: 600px) {
+		.patient-form-container {
+			padding: 1rem;
+		}
+
+		.form-row {
+			grid-template-columns: 1fr;
+		}
+
+		.patient-form-header h2 {
+			font-size: 1.4rem;
+		}
+
+		.form-actions {
+			flex-direction: column;
+		}
+
+		.btn {
+			width: 100%;
+		}
+
+		.input-wrapper {
+			position: relative;
+		}
+
+		.char-count {
+			position: absolute;
+			right: 10px;
+			top: 8px;
+		}
+
+		.textarea ~ .char-count {
+			top: 8px;
+			bottom: auto;
+		}
+	}
+
+	/* Loading State */
+	.btn-primary.loading {
+		opacity: 0.7;
+		pointer-events: none;
+	}
+
+	.btn-primary.loading::after {
+		content: '';
+		display: inline-block;
+		width: 14px;
+		height: 14px;
+		border: 2px solid rgba(255, 255, 255, 0.3);
+		border-radius: 50%;
+		border-top-color: white;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
+	}
+</style>
+
+<script>
+	// Real-time validation and character counting
+	document.addEventListener('DOMContentLoaded', function() {
+		const form = document.getElementById('patientForm');
+		const submitBtn = document.getElementById('submitBtn');
+		const formErrors = document.getElementById('formErrors');
+		const errorsList = document.getElementById('errorsList');
+		const formSuccess = document.getElementById('formSuccess');
+
+		// Input fields
+		const fullNameInput = document.getElementById('fullName');
+		const mrnInput = document.getElementById('mrn');
+		const wardInput = document.getElementById('ward');
+		const roomNumberInput = document.getElementById('roomNumber');
+		const dietaryRestrictionsInput = document.getElementById('dietaryRestrictions');
+		const allergiesInput = document.getElementById('allergies');
+
+		// Validation rules
+		const validationRules = {
+			fullName: {
+				pattern: /^[a-zA-Z\s'-\.]*$/,
+				minLength: 3,
+				maxLength: 100,
+				message: 'Name must contain letters, spaces, hyphens, or apostrophes (min 3 chars)'
+			},
+			mrn: {
+				pattern: /^[A-Z0-9\-]*$/,
+				minLength: 3,
+				maxLength: 20,
+				message: 'MRN must contain uppercase letters, numbers, or hyphens'
+			},
+			ward: {
+				pattern: /^[a-zA-Z0-9\s\-]*$/,
+				minLength: 1,
+				maxLength: 50,
+				message: 'Ward must contain letters, numbers, spaces, or hyphens'
+			},
+			roomNumber: {
+				pattern: /^[A-Z0-9\-\/\.]*$/i,
+				minLength: 1,
+				maxLength: 50,
+				message: 'Room number must contain valid characters'
+			},
+			dietaryRestrictions: {
+				pattern: /^[a-zA-Z0-9\s,\-\.]*$/,
+				maxLength: 500,
+				message: 'Dietary restrictions format invalid'
+			},
+			allergies: {
+				pattern: /^[a-zA-Z0-9\s,\-\.]*$/,
+				maxLength: 500,
+				message: 'Allergies format invalid'
+			}
+		};
+
+		/**
+		 * Validate individual field
+		 */
+		function validateField(input, fieldName) {
+			const value = input.value.trim();
+			const rules = validationRules[fieldName];
+			const errors = [];
+
+			if (fieldName === 'fullName' && !value) {
+				errors.push('Full name is required');
+			} else if (fieldName === 'ward' && !value) {
+				errors.push('Ward is required');
+			} else if (fieldName === 'roomNumber' && !value) {
+				errors.push('Room number is required');
+			} else {
+				if (value && value.length < rules.minLength) {
+					errors.push(\`Must be at least \${rules.minLength} characters\`);
+				}
+				if (value && value.length > rules.maxLength) {
+					errors.push(\`Must not exceed \${rules.maxLength} characters\`);
+				}
+				if (value && !rules.pattern.test(value)) {
+					errors.push(rules.message);
+				}
+			}
+
+			// Display field errors
+			const errorDiv = document.getElementById(fieldName + 'Error');
+			if (errors.length > 0) {
+				input.classList.add('has-error');
+				input.classList.remove('is-valid');
+				errorDiv.textContent = errors[0];
+				errorDiv.classList.add('show');
+			} else {
+				input.classList.remove('has-error');
+				if (value) input.classList.add('is-valid');
+				errorDiv.classList.remove('show');
+			}
+
+			return errors;
+		}
+
+		/**
+		 * Validate entire form
+		 */
+		function validateForm() {
+			const allErrors = [];
+
+			['fullName', 'mrn', 'ward', 'roomNumber', 'dietaryRestrictions', 'allergies'].forEach(field => {
+				let input;
+				switch(field) {
+					case 'fullName': input = fullNameInput; break;
+					case 'mrn': input = mrnInput; break;
+					case 'ward': input = wardInput; break;
+					case 'roomNumber': input = roomNumberInput; break;
+					case 'dietaryRestrictions': input = dietaryRestrictionsInput; break;
+					case 'allergies': input = allergiesInput; break;
+				}
+
+				const fieldErrors = validateField(input, field);
+				if (fieldErrors.length > 0) {
+					allErrors.push({ field, errors: fieldErrors });
+				}
+			});
+
+			// Display overall form errors
+			if (allErrors.length > 0) {
+				errorsList.innerHTML = allErrors
+					.map(item => \`<li><strong>\${formatFieldName(item.field)}:</strong> \${item.errors[0]}</li>\`)
+					.join('');
+				formErrors.style.display = 'block';
+				formSuccess.style.display = 'none';
+			} else {
+				formErrors.style.display = 'none';
+				formSuccess.style.display = 'flex';
+			}
+
+			return allErrors.length === 0;
+		}
+
+		/**
+		 * Format field name for display
+		 */
+		function formatFieldName(fieldName) {
+			const names = {
+				fullName: 'Full Name',
+				mrn: 'MRN',
+				ward: 'Ward',
+				roomNumber: 'Room Number',
+				dietaryRestrictions: 'Dietary Restrictions',
+				allergies: 'Allergies'
+			};
+			return names[fieldName] || fieldName;
+		}
+
+		// Character counting
+		function setupCharCounter(input, counterId) {
+			input.addEventListener('input', function() {
+				document.getElementById(counterId).textContent = this.value.length;
+			});
+			// Initialize counter
+			document.getElementById(counterId).textContent = input.value.length;
+		}
+
+		setupCharCounter(fullNameInput, 'fullNameCount');
+		setupCharCounter(mrnInput, 'mrnCount');
+		setupCharCounter(wardInput, 'wardCount');
+		setupCharCounter(roomNumberInput, 'roomNumberCount');
+		setupCharCounter(dietaryRestrictionsInput, 'dietaryRestrictionsCount');
+		setupCharCounter(allergiesInput, 'allergiesCount');
+
+		// Real-time validation on input
+		[fullNameInput, mrnInput, wardInput, roomNumberInput, dietaryRestrictionsInput, allergiesInput].forEach((input, idx) => {
+			const fieldNames = ['fullName', 'mrn', 'ward', 'roomNumber', 'dietaryRestrictions', 'allergies'];
+			input.addEventListener('blur', function() {
+				validateField(this, fieldNames[idx]);
+			});
+			input.addEventListener('input', function() {
+				validateField(this, fieldNames[idx]);
+			});
+		});
+
+		// Form submission
+		form.addEventListener('submit', function(e) {
+			e.preventDefault();
+
+			if (validateForm()) {
+				submitBtn.classList.add('loading');
+				submitBtn.disabled = true;
+				setTimeout(() => {
+					form.submit();
+				}, 500);
+			} else {
+				window.scrollTo({ top: 0, behavior: 'smooth' });
+			}
+		});
+
+		// Initialize validation on page load
+		validateForm();
+	});
+</script> 

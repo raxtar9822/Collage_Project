@@ -1,244 +1,448 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hospital Meals • Login</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <style>
-        * {
-            box-sizing: border-box;
-        }
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Hospital Meals • Login</title>
+	<style>
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+		}
 
-        html, body {
-            height: 100%;
-        }
+		html, body {
+			height: 100%;
+			font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+		}
 
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background: #123456;
-            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            color: #0f172a;
-            display: flex;
-        }
+		body {
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			min-height: 100vh;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 20px;
+		}
 
-        .page {
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 32px 16px;
-        }
+		.login-container {
+			width: 100%;
+			max-width: 900px;
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 0;
+			background: white;
+			border-radius: 16px;
+			overflow: hidden;
+			box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+		}
 
-        .card {
-            width: 100%;
-            max-width: 420px;
-            background: #ffffff;
-            border-radius: 28px;
-            padding: 48px 40px;
-            box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25);
-        }
+		/* Left Side - Branding */
+		.login-branding {
+			background: linear-gradient(135deg, #0066cc 0%, #00a8b5 100%);
+			color: white;
+			padding: 3rem 2rem;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			text-align: center;
+		}
 
-        .brand {
-            text-align: center;
-            margin-bottom: 28px;
-        }
+		.brand-icon {
+			width: 80px;
+			height: 80px;
+			background: rgba(255, 255, 255, 0.2);
+			border-radius: 16px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			margin-bottom: 1.5rem;
+			font-size: 2.5rem;
+			backdrop-filter: blur(10px);
+		}
 
-        .brand__icon {
-            width: 58px;
-            height: 58px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            color: #fff;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 26px;
-            margin-bottom: 14px;
-        }
+		.brand-title {
+			font-size: 2rem;
+			font-weight: 700;
+			margin-bottom: 0.5rem;
+		}
 
-        .brand__title {
-            margin: 0;
-            font-size: 28px;
-            font-weight: 600;
-            color: #0f172a;
-        }
+		.brand-subtitle {
+			font-size: 1rem;
+			opacity: 0.9;
+			margin-bottom: 2rem;
+		}
 
-        .brand__subtitle {
-            margin: 6px 0 0;
-            color: #64748b;
-            font-size: 15px;
-        }
+		.brand-features {
+			text-align: left;
+			opacity: 0.95;
+		}
 
-        .role-toggle {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            margin-bottom: 26px;
-        }
+		.feature {
+			display: flex;
+			align-items: flex-start;
+			gap: 0.75rem;
+			margin-bottom: 1rem;
+			font-size: 0.95rem;
+		}
 
-        .role-btn {
-            border-radius: 12px;
-            border: 2px solid #3b82f6;
-            background: #fff;
-            color: #3b82f6;
-            font-weight: 600;
-            font-size: 15px;
-            padding: 12px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
+		.feature-icon {
+			font-size: 1.3rem;
+			flex-shrink: 0;
+		}
 
-        .role-btn.active {
-            background: #3b82f6;
-            color: #fff;
-            box-shadow: 0 8px 18px rgba(59, 130, 246, 0.35);
-        }
+		/* Right Side - Login Form */
+		.login-form-section {
+			padding: 3rem 2rem;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+		}
 
-        label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 6px;
-            color: #0f172a;
-        }
+		.form-header {
+			margin-bottom: 2rem;
+		}
 
-        .form-copy {
-            font-size: 18px;
-            font-weight: 600;
-            color: #0f172a;
-            margin-bottom: 18px;
-        }
+		.form-title {
+			font-size: 1.5rem;
+			font-weight: 700;
+			color: #1e293b;
+			margin-bottom: 0.5rem;
+		}
 
-        .input {
-            width: 100%;
-            border-radius: 12px;
-            border: 1.6px solid #e2e8f0;
-            padding: 12px 14px;
-            font-size: 15px;
-            background: #f8fafc;
-            transition: border-color 0.2s ease, background 0.2s ease;
-            margin-bottom: 18px;
-        }
+		.form-subtitle {
+			color: #64748b;
+			font-size: 0.95rem;
+		}
 
-        .input:focus {
-            outline: none;
-            border-color: #2563eb;
-            background: #fff;
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-        }
+		/* Role Toggle */
+		.role-tabs {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 0.75rem;
+			margin-bottom: 2rem;
+			border-bottom: 2px solid #e2e8f0;
+		}
 
-        .btn {
-            width: 100%;
-            border: none;
-            border-radius: 12px;
-            padding: 14px 18px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            color: #fff;
-            background: linear-gradient(135deg, #0ea5e9, #2563eb);
-            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
-            transition: transform 0.15s ease;
-        }
+		.tab-btn {
+			padding: 1rem;
+			border: none;
+			background: transparent;
+			color: #64748b;
+			font-size: 0.95rem;
+			font-weight: 600;
+			cursor: pointer;
+			border-bottom: 3px solid transparent;
+			transition: all 0.3s ease;
+			position: relative;
+		}
 
-        .btn:active {
-            transform: translateY(1px);
-        }
+		.tab-btn.active {
+			color: #0066cc;
+			border-bottom-color: #0066cc;
+		}
 
-        .alert {
-            border-radius: 12px;
-            padding: 12px 14px;
-            font-size: 14px;
-            background: #fee2e2;
-            color: #b91c1c;
-            border: 1px solid #fecaca;
-            margin-bottom: 18px;
-        }
+		.tab-btn:hover {
+			color: #0066cc;
+		}
 
-        @media (max-width: 500px) {
-            .card {
-                padding: 36px 28px;
-                border-radius: 22px;
-            }
-        }
-    </style>
+		/* Alert */
+		.alert {
+			background: #fee2e2;
+			border: 1px solid #fecaca;
+			color: #b91c1c;
+			padding: 1rem;
+			border-radius: 8px;
+			margin-bottom: 1.5rem;
+			display: flex;
+			align-items: flex-start;
+			gap: 0.75rem;
+		}
+
+		.alert-icon {
+			font-size: 1.2rem;
+			flex-shrink: 0;
+		}
+
+		/* Form Group */
+		.form-group {
+			margin-bottom: 1.2rem;
+		}
+
+		.form-label {
+			display: block;
+			font-weight: 600;
+			color: #1e293b;
+			font-size: 0.9rem;
+			margin-bottom: 0.5rem;
+		}
+
+		.form-input {
+			width: 100%;
+			padding: 0.75rem 1rem;
+			border: 2px solid #e2e8f0;
+			border-radius: 8px;
+			font-size: 0.95rem;
+			color: #1e293b;
+			font-family: inherit;
+			transition: all 0.2s ease;
+			background-color: #f8fafc;
+		}
+
+		.form-input:focus {
+			outline: none;
+			border-color: #0066cc;
+			background-color: white;
+			box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+		}
+
+		.form-input::placeholder {
+			color: #94a3b8;
+		}
+
+		/* Submit Button */
+		.btn-login {
+			width: 100%;
+			padding: 0.9rem 1.5rem;
+			border: none;
+			background: linear-gradient(135deg, #0066cc 0%, #0052a3 100%);
+			color: white;
+			font-size: 1rem;
+			font-weight: 600;
+			border-radius: 8px;
+			cursor: pointer;
+			transition: all 0.3s ease;
+			margin-top: 0.5rem;
+		}
+
+		.btn-login:hover {
+			transform: translateY(-2px);
+			box-shadow: 0 10px 20px rgba(0, 102, 204, 0.3);
+		}
+
+		.btn-login:active {
+			transform: translateY(0);
+		}
+
+		/* Demo Credentials */
+		.demo-section {
+			margin-top: 1.5rem;
+			padding-top: 1.5rem;
+			border-top: 1px solid #e2e8f0;
+		}
+
+		.demo-title {
+			font-size: 0.85rem;
+			font-weight: 600;
+			color: #64748b;
+			text-transform: uppercase;
+			margin-bottom: 0.75rem;
+		}
+
+		.demo-cred {
+			font-size: 0.8rem;
+			color: #94a3b8;
+			margin-bottom: 0.4rem;
+			font-family: 'Monaco', 'Courier New', monospace;
+		}
+
+		.demo-cred strong {
+			color: #1e293b;
+		}
+
+		/* Responsive */
+		@media (max-width: 768px) {
+			.login-container {
+				grid-template-columns: 1fr;
+			}
+
+			.login-branding {
+				padding: 2rem;
+				border-bottom: 1px solid #e2e8f0;
+			}
+
+			.brand-icon {
+				width: 60px;
+				height: 60px;
+				font-size: 2rem;
+			}
+
+			.brand-title {
+				font-size: 1.5rem;
+			}
+
+			.login-form-section {
+				padding: 2rem;
+			}
+
+			.form-title {
+				font-size: 1.3rem;
+			}
+		}
+
+		@media (max-width: 480px) {
+			.login-container {
+				border-radius: 8px;
+			}
+
+			.login-branding {
+				padding: 1.5rem;
+			}
+
+			.login-form-section {
+				padding: 1.5rem;
+			}
+
+			.brand-features {
+				display: none;
+			}
+		}
+	</style>
 </head>
 <body>
-    <div class="page">
-        <div class="card">
-        <div class="brand">
-            <div class="brand__icon">🏥</div>
-            <h1 class="brand__title">Hospital Meals</h1>
-            <p class="brand__subtitle">Meal Ordering System</p>
-        </div>
+	<div class="login-container">
+		<!-- Left Side - Branding -->
+		<div class="login-branding">
+			<div class="brand-icon">🏥</div>
+			<h1 class="brand-title">Hospital Meals</h1>
+			<p class="brand-subtitle">Meal Ordering System</p>
+			
+			<div class="brand-features">
+				<div class="feature">
+					<div class="feature-icon">✓</div>
+					<div>Easy meal ordering</div>
+				</div>
+				<div class="feature">
+					<div class="feature-icon">✓</div>
+					<div>Real-time tracking</div>
+				</div>
+				<div class="feature">
+					<div class="feature-icon">✓</div>
+					<div>Dietary management</div>
+				</div>
+				<div class="feature">
+					<div class="feature-icon">✓</div>
+					<div>Secure access</div>
+				</div>
+			</div>
+		</div>
 
-        <% if (typeof error !== 'undefined' && error) { %>
-            <div class="alert"><%= error %></div>
-        <% } %>
+		<!-- Right Side - Login Form -->
+		<div class="login-form-section">
+			<div class="form-header">
+				<h2 class="form-title" id="formTitle">Sign In</h2>
+				<p class="form-subtitle" id="formSubtitle">Enter your credentials to continue</p>
+			</div>
 
-        <div class="role-toggle">
-            <button type="button" id="btn-mess" class="role-btn">Mess Owner</button>
-            <button type="button" id="btn-hospital" class="role-btn">Hospital Staff</button>
-        </div>
+			<% if (typeof error !== 'undefined' && error) { %>
+				<div class="alert">
+					<div class="alert-icon">⚠️</div>
+					<div><%= error %></div>
+				</div>
+			<% } %>
 
-        <form id="loginForm" method="POST" action="/login/mess" novalidate>
-            <div class="form-copy" id="formLabel">Mess Owner Login</div>
-            <label for="username">Username</label>
-            <input
-                id="username"
-                name="username"
-                type="text"
-                class="input"
-                placeholder="Enter username"
-                required
-            >
+			<!-- Role Selection -->
+			<div class="role-tabs">
+				<button type="button" class="tab-btn active" id="btn-mess" data-role="mess">
+					Mess Owner
+				</button>
+				<button type="button" class="tab-btn" id="btn-hospital" data-role="hospital">
+					Hospital Staff
+				</button>
+			</div>
 
-            <label for="password">Password</label>
-            <input
-                id="password"
-                name="password"
-                type="password"
-                class="input"
-                placeholder="Enter password"
-                required
-            >
+			<!-- Login Form -->
+			<form id="loginForm" method="POST" action="/login/mess" novalidate>
+				<div class="form-group">
+					<label for="username" class="form-label">Username</label>
+					<input
+						id="username"
+						name="username"
+						type="text"
+						class="form-input"
+						placeholder="Enter your username"
+						autocomplete="username"
+						required
+					>
+				</div>
 
-            <button class="btn" type="submit">Sign In</button>
-        </form>
-        </div>
-    </div>
+				<div class="form-group">
+					<label for="password" class="form-label">Password</label>
+					<input
+						id="password"
+						name="password"
+						type="password"
+						class="form-input"
+						placeholder="Enter your password"
+						autocomplete="current-password"
+						required
+					>
+				</div>
 
-    <script>
-        const loginForm = document.getElementById('loginForm');
-        const formLabel = document.getElementById('formLabel');
-        const btnMess = document.getElementById('btn-mess');
-        const btnHospital = document.getElementById('btn-hospital');
-        const defaultType = '<%= errorType === "hospital" ? "hospital" : "mess" %>';
+				<button class="btn-login" type="submit">Sign In</button>
 
-        function setMode(type) {
-            const messActive = type === 'mess';
-            btnMess.classList.toggle('active', messActive);
-            btnHospital.classList.toggle('active', !messActive);
-            loginForm.action = messActive ? '/login/mess' : '/login/hospital';
-            formLabel.textContent = messActive ? 'Mess Owner Login' : 'Hospital Staff Login';
-            document.getElementById('username').placeholder = messActive ? 'messowner' : 'nurse1';
-            document.getElementById('password').placeholder = messActive ? '********' : '********';
-        }
+				<div class="demo-section">
+					<div class="demo-title">Demo Credentials</div>
+					<div class="demo-cred">
+						<strong>Admin:</strong> messowner / mess123
+					</div>
+					<div class="demo-cred">
+						<strong>Nurse:</strong> nurse1 / nurse123
+					</div>
+					<div class="demo-cred">
+						<strong>Kitchen:</strong> kitchen1 / kitchen123
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
 
-        btnMess.addEventListener('click', () => {
-            setMode('mess');
-        });
+	<script>
+		const loginForm = document.getElementById('loginForm');
+		const formTitle = document.getElementById('formTitle');
+		const formSubtitle = document.getElementById('formSubtitle');
+		const btnMess = document.getElementById('btn-mess');
+		const btnHospital = document.getElementById('btn-hospital');
+		const usernameInput = document.getElementById('username');
+		const passwordInput = document.getElementById('password');
+		const defaultType = '<%= errorType === "hospital" ? "hospital" : "mess" %>';
 
-        btnHospital.addEventListener('click', () => {
-            setMode('hospital');
-        });
+		const roleTitles = {
+			mess: { title: 'Mess Owner Login', subtitle: 'Manage meal services and inventory' },
+			hospital: { title: 'Hospital Staff Login', subtitle: 'Order and manage patient meals' }
+		};
 
-        setMode(defaultType);
-    </script>
+		const rolePlaceholders = {
+			mess: { username: 'messowner', password: 'Password' },
+			hospital: { username: 'nurse1', password: 'Password' }
+		};
+
+		function setMode(type) {
+			const isMess = type === 'mess';
+			
+			// Update tabs
+			btnMess.classList.toggle('active', isMess);
+			btnHospital.classList.toggle('active', !isMess);
+			
+			// Update form action
+			loginForm.action = isMess ? '/login/mess' : '/login/hospital';
+			
+			// Update text
+			formTitle.textContent = roleTitles[type].title;
+			formSubtitle.textContent = roleTitles[type].subtitle;
+			
+			// Update placeholders
+			usernameInput.placeholder = `e.g., ${rolePlaceholders[type].username}`;
+			passwordInput.placeholder = rolePlaceholders[type].password;
+		}
+
+		btnMess.addEventListener('click', () => setMode('mess'));
+		btnHospital.addEventListener('click', () => setMode('hospital'));
+
+		// Set initial mode
+		setMode(defaultType);
+	</script>
 </body>
 </html>
 
