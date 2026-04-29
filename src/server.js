@@ -137,6 +137,19 @@ function requireRole(roles) {
 	};
 }
 
+// Async error handler wrapper
+const asyncHandler = (fn) => (req, res, next) => {
+	Promise.resolve(fn(req, res, next)).catch((err) => {
+		console.error('❌ Async Handler Error:', {
+			message: err.message,
+			stack: err.stack,
+			url: req.originalUrl,
+			method: req.method
+		});
+		next(err);
+	});
+};
+
 app.get('/', (req, res) => {
 	if (!req.session.user) return res.redirect('/login');
 	res.redirect('/dashboard');
@@ -1048,7 +1061,11 @@ app.use((err, req, res, next) => {
 			success: false,
 			error: isProduction ? 'Internal Server Error' : message,
 			code: err.code || 'INTERNAL_ERROR',
-			...(process.env.DEBUG && { details: err.stack })
+			message: message,
+			status: status,
+			timestamp: new Date().toISOString(),
+			...(process.env.DEBUG && { details: err.stack }),
+			...(process.env.DEBUG && { url: req.originalUrl })
 		});
 	}
 	
