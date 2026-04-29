@@ -1,6 +1,7 @@
 <% const title = 'Orders'; %>
 
 <style>
+	/* Section Title - Perfectly Centered Icon */
 	.section-title {
 		font-size: 1.75rem;
 		font-weight: 700;
@@ -8,16 +9,28 @@
 		margin-bottom: 1.5rem;
 		display: flex;
 		align-items: center;
+		justify-content: flex-start;
 		gap: 0.75rem;
 	}
 
-	/* Orders List */
+	.section-title svg {
+		width: 28px;
+		height: 28px;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	/* Orders List - Mobile First */
 	.orders-container {
 		display: grid;
+		grid-template-columns: 1fr;
 		gap: 1rem;
 		margin-bottom: 2rem;
 	}
 
+	/* Order Card - Equal Heights */
 	.order-card {
 		background: var(--bg-card);
 		border: 1px solid var(--border);
@@ -25,6 +38,9 @@
 		overflow: hidden;
 		transition: all 0.3s ease;
 		cursor: pointer;
+		display: flex;
+		flex-direction: column;
+		box-shadow: var(--shadow-sm);
 	}
 
 	.order-card:hover {
@@ -33,46 +49,67 @@
 		transform: translateY(-2px);
 	}
 
+	/* Order Header - Better Alignment */
 	.order-header {
 		padding: 1.25rem;
 		background: linear-gradient(135deg, #f8fafc, #f1f5f9);
 		border-bottom: 1px solid var(--border);
-		display: grid;
-		grid-template-columns: auto 1fr auto auto auto;
+		display: flex;
+		flex-direction: column;
 		gap: 1rem;
+		align-items: stretch;
+	}
+
+	/* Order Header Row - Desktop Layout */
+	.order-header-row {
+		display: flex;
 		align-items: center;
+		gap: 1rem;
+		flex-wrap: wrap;
+		justify-content: space-between;
 	}
 
 	.order-id {
 		font-weight: 700;
 		color: var(--primary);
 		font-size: 1.1rem;
+		white-space: nowrap;
 	}
 
 	.order-patient {
 		display: flex;
 		flex-direction: column;
 		gap: 0.25rem;
+		flex: 1;
+		min-width: 150px;
 	}
 
 	.patient-name {
 		font-weight: 600;
 		color: var(--text-primary);
+		font-size: 0.95rem;
 	}
 
 	.patient-room {
 		font-size: 0.85rem;
 		color: var(--text-secondary);
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
 	}
 
 	.order-item {
 		font-weight: 500;
 		color: var(--text-primary);
+		flex: 1;
+		min-width: 120px;
 	}
 
+	/* Status Badge - Centered */
 	.status-badge {
 		display: inline-flex;
 		align-items: center;
+		justify-content: center;
 		gap: 0.5rem;
 		padding: 0.5rem 1rem;
 		border-radius: 0.5rem;
@@ -80,6 +117,8 @@
 		font-weight: 600;
 		text-transform: capitalize;
 		white-space: nowrap;
+		box-shadow: var(--shadow-sm);
+		min-width: 120px;
 	}
 
 	.status-badge.placed {
@@ -108,17 +147,28 @@
 		border-radius: 50%;
 		background: currentColor;
 		opacity: 0.6;
+		flex-shrink: 0;
 	}
 
+	/* Order Actions */
 	.order-actions {
 		display: flex;
 		gap: 0.5rem;
+		flex-wrap: wrap;
+		align-items: center;
 	}
 
+	.order-actions form {
+		display: inline-flex;
+		gap: 0.25rem;
+	}
+
+	/* Order Details - Better Layout */
 	.order-details {
 		padding: 1.25rem;
 		background: var(--bg-card);
 		border-top: 1px solid var(--border);
+		flex: 1;
 	}
 
 	.detail-row {
@@ -126,37 +176,56 @@
 		grid-template-columns: auto 1fr;
 		gap: 1rem;
 		margin-bottom: 0.75rem;
+		align-items: flex-start;
 	}
 
 	.detail-row:last-child {
 		margin-bottom: 0;
 	}
 
+	.detail-icon {
+		width: 1.5rem;
+		height: 1.5rem;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		font-size: 1.25rem;
+	}
+
 	.detail-label {
 		font-weight: 600;
 		color: var(--text-secondary);
 		font-size: 0.85rem;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		white-space: nowrap;
 	}
 
 	.detail-value {
 		color: var(--text-primary);
+		word-break: break-word;
 	}
 
 	.alert-box {
 		background: #fee2e2;
 		border-left: 4px solid var(--danger);
-		padding: 0.75rem;
 		border-radius: 0.35rem;
+		padding: 0.75rem;
 		font-size: 0.85rem;
 		color: #7f1d1d;
+		box-shadow: var(--shadow-sm);
 	}
 
 	.alert-box strong {
 		display: block;
 		color: var(--danger);
 		margin-bottom: 0.25rem;
+		font-weight: 700;
 	}
 
+	/* Buttons - Aligned */
 	.btn-action {
 		padding: 0.55rem 1rem;
 		border: none;
@@ -166,6 +235,11 @@
 		cursor: pointer;
 		transition: all 0.2s ease;
 		white-space: nowrap;
+		box-shadow: var(--shadow-sm);
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.25rem;
 	}
 
 	.btn-action.primary {
@@ -176,7 +250,7 @@
 	.btn-action.primary:hover {
 		background: var(--primary-dark);
 		transform: translateY(-1px);
-		box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
+		box-shadow: var(--shadow-md);
 	}
 
 	.btn-action.secondary {
@@ -186,6 +260,7 @@
 
 	.btn-action.secondary:hover {
 		background: #d1d5db;
+		transform: translateY(-1px);
 	}
 
 	.btn-action.success {
@@ -196,13 +271,14 @@
 	.btn-action.success:hover {
 		background: #059669;
 		transform: translateY(-1px);
-		box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+		box-shadow: var(--shadow-md);
 	}
 
 	.form-inline {
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
+		flex-wrap: wrap;
 	}
 
 	.select-consumption {
@@ -211,6 +287,14 @@
 		border-radius: 0.35rem;
 		font-size: 0.85rem;
 		background: var(--bg-card);
+		cursor: pointer;
+		transition: all 0.2s ease;
+	}
+
+	.select-consumption:focus {
+		outline: none;
+		border-color: var(--primary);
+		box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
 	}
 
 	/* Create Order Section */
@@ -219,6 +303,7 @@
 		border: 1px solid var(--border);
 		border-radius: 0.75rem;
 		padding: 1.5rem;
+		box-shadow: var(--shadow-sm);
 	}
 
 	.create-order-title {
@@ -231,9 +316,15 @@
 		gap: 0.75rem;
 	}
 
+	.create-order-title svg {
+		width: 20px;
+		height: 20px;
+		flex-shrink: 0;
+	}
+
 	.form-row {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		grid-template-columns: 1fr;
 		gap: 1rem;
 		margin-bottom: 1rem;
 	}
@@ -242,24 +333,143 @@
 		grid-template-columns: 1fr;
 	}
 
-	@media (max-width: 768px) {
+	/* Empty State */
+	.empty-state {
+		padding: 2rem 1.5rem;
+		text-align: center;
+		background: var(--bg-card);
+		border: 1px solid var(--border);
+		border-radius: 0.75rem;
+		box-shadow: var(--shadow-sm);
+	}
+
+	.empty-state-icon {
+		font-size: 2.5rem;
+		margin-bottom: 1rem;
+	}
+
+	.empty-state-text {
+		color: var(--text-secondary);
+		margin: 0;
+		font-size: 0.95rem;
+	}
+
+	/* Responsive Mobile First */
+	@media (max-width: 640px) {
+		.section-title {
+			font-size: 1.5rem;
+		}
+
 		.order-header {
-			grid-template-columns: 1fr;
+			padding: 1rem;
+			gap: 0.75rem;
+		}
+
+		.order-header-row {
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+
+		.order-id {
+			font-size: 1rem;
+		}
+
+		.order-patient {
+			width: 100%;
+		}
+
+		.order-item {
+			width: 100%;
+		}
+
+		.status-badge {
+			width: 100%;
+			justify-content: center;
+			min-width: auto;
 		}
 
 		.order-actions {
+			width: 100%;
+			justify-content: stretch;
+		}
+
+		.order-actions form {
+			flex: 1;
+		}
+
+		.btn-action {
+			width: 100%;
+		}
+
+		.order-details {
+			padding: 1rem;
+		}
+
+		.detail-row {
+			grid-template-columns: 1fr;
+			gap: 0.5rem;
+		}
+
+		.detail-label {
 			flex-wrap: wrap;
 		}
 
 		.form-row {
 			grid-template-columns: 1fr;
 		}
+
+		.form-inline {
+			flex-direction: column;
+		}
+
+		.select-consumption {
+			width: 100%;
+		}
+
+		.create-order-section {
+			padding: 1rem;
+		}
+
+		.create-order-title {
+			font-size: 1.1rem;
+		}
+	}
+
+	/* Tablet Optimization */
+	@media (min-width: 641px) and (max-width: 1024px) {
+		.form-row {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.order-header-row {
+			justify-content: space-between;
+		}
+	}
+
+	/* Desktop Layout */
+	@media (min-width: 1025px) {
+		.order-header {
+			padding: 1.25rem 1.5rem;
+			gap: 0;
+		}
+
+		.order-header-row {
+			width: 100%;
+		}
+
+		.detail-row {
+			grid-template-columns: auto 1fr;
+		}
+
+		.form-row {
+			grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+		}
 	}
 </style>
 
 <!-- Orders Section Header -->
 <div class="section-title">
-	<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+	<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-sm">
 		<circle cx="9" cy="21" r="1"></circle>
 		<circle cx="20" cy="21" r="1"></circle>
 		<path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
@@ -270,49 +480,75 @@
 <!-- Orders List -->
 <div class="orders-container">
 	<% if (orders.length === 0) { %>
-		<div class="card" style="padding: 2rem; text-align: center;">
-			<div style="font-size: 2rem; margin-bottom: 1rem;">📭</div>
-			<p style="color: var(--text-secondary); margin: 0;">No orders found</p>
+		<div class="empty-state">
+			<div class="empty-state-icon">📭</div>
+			<p class="empty-state-text">No orders found</p>
 		</div>
 	<% } else { %>
 		<% orders.forEach(o => { %>
 		<div class="order-card">
 			<div class="order-header">
-				<div class="order-id">#<%= o.id %></div>
-				<div class="order-patient">
-					<div class="patient-name"><%= o.patient_name %></div>
-					<div class="patient-room">Room: <%= o.room_number || 'N/A' %></div>
+				<div class="order-header-row">
+					<div class="order-id">#<%= o.id %></div>
+					<div class="order-patient">
+						<div class="patient-name"><%= o.patient_name %></div>
+						<div class="patient-room">
+							<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+								<polyline points="9 22 9 12 15 12 15 22"></polyline>
+							</svg>
+							Room: <%= o.room_number || 'N/A' %>
+						</div>
+					</div>
+					<div class="order-item"><%= o.item_name %></div>
+					<span class="status-badge <%= o.status %>"><%= o.status.replace(/_/g, ' ') %></span>
 				</div>
-				<div class="order-item"><%= o.item_name %></div>
-				<span class="status-badge <%= o.status %>"><%= o.status.replace(/_/g, ' ') %></span>
 				<div class="order-actions">
 					<% if (['kitchen','admin'].includes(user.role) && o.status === 'placed') { %>
-						<form method="post" action="/orders/<%= o.id %>/status" style="display:inline">
+						<form method="post" action="/orders/<%= o.id %>/status">
 							<input type="hidden" name="status" value="in_kitchen" />
-							<button class="btn-action primary">Start</button>
+							<button class="btn-action primary" title="Start preparing this order">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<circle cx="12" cy="12" r="10"></circle>
+									<polyline points="12 6 12 12 16 14"></polyline>
+								</svg>
+								Start
+							</button>
 						</form>
 					<% } %>
 					<% if (['kitchen','admin'].includes(user.role) && o.status === 'in_kitchen') { %>
-						<form method="post" action="/orders/<%= o.id %>/status" style="display:inline">
+						<form method="post" action="/orders/<%= o.id %>/status">
 							<input type="hidden" name="status" value="out_for_delivery" />
-							<button class="btn-action primary">Send</button>
+							<button class="btn-action primary" title="Send order out for delivery">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M5 18H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-1"></path>
+									<circle cx="15" cy="19" r="2"></circle>
+									<circle cx="6" cy="19" r="2"></circle>
+								</svg>
+								Send
+							</button>
 						</form>
 					<% } %>
 					<% if (['delivery','admin'].includes(user.role) && o.status === 'out_for_delivery') { %>
-						<form method="post" action="/orders/<%= o.id %>/status" style="display:inline">
+						<form method="post" action="/orders/<%= o.id %>/status">
 							<input type="hidden" name="status" value="delivered" />
-							<button class="btn-action success">Delivered</button>
+							<button class="btn-action success" title="Mark as delivered">
+								<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<polyline points="20 6 9 17 4 12"></polyline>
+								</svg>
+								Delivered
+							</button>
 						</form>
 					<% } %>
 					<% if (['delivery','admin'].includes(user.role) && o.status === 'delivered') { %>
-						<form method="post" action="/orders/<%= o.id %>/consumption" style="display:inline" class="form-inline">
-							<select name="consumption_status" class="select-consumption" required>
+						<form method="post" action="/orders/<%= o.id %>/consumption" class="form-inline">
+							<select name="consumption_status" class="select-consumption" required title="Record patient consumption status">
 								<option value="" disabled selected>Consumption</option>
-								<option value="eaten">Eaten</option>
-								<option value="partial">Partial</option>
-								<option value="refused">Refused</option>
+								<option value="eaten">✓ Eaten</option>
+								<option value="partial">⊕ Partial</option>
+								<option value="refused">✗ Refused</option>
 							</select>
-							<button class="btn-action success">Save</button>
+							<button class="btn-action success" title="Save consumption status">Save</button>
 						</form>
 					<% } %>
 				</div>
@@ -320,30 +556,53 @@
 
 			<!-- Order Details -->
 			<div class="order-details">
-				<% if (o.dietary_restrictions || o.allergies) { %>
-					<% if (o.dietary_restrictions) { %>
-						<div class="detail-row">
-							<div class="detail-label">🥗 Dietary:</div>
-							<div class="detail-value"><%= o.dietary_restrictions %></div>
+				<% if (o.dietary_restrictions && o.dietary_restrictions.toLowerCase() !== 'no') { %>
+					<div class="detail-row">
+						<div class="detail-label">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-pill">
+								<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path>
+								<circle cx="12" cy="12" r="3"></circle>
+							</svg>
+							Dietary:
 						</div>
-					<% } %>
-					<% if (o.allergies) { %>
-						<div class="detail-row">
-							<div class="detail-label">⚠️ Allergies:</div>
-							<div class="alert-box">
-								<strong>Important:</strong> <%= o.allergies %>
-							</div>
+						<div class="detail-value"><%= o.dietary_restrictions %></div>
+					</div>
+				<% } %>
+				<% if (o.allergies && o.allergies.toLowerCase() !== 'no') { %>
+					<div class="detail-row">
+						<div class="detail-label">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--danger);">
+								<circle cx="12" cy="12" r="10"></circle>
+								<line x1="12" y1="8" x2="12" y2="16"></line>
+								<line x1="8" y1="12" x2="16" y2="12"></line>
+							</svg>
+							Allergies:
 						</div>
-					<% } %>
+						<div class="alert-box">
+							<strong>Important:</strong> <%= o.allergies %>
+						</div>
+					</div>
 				<% } %>
 				<% if (o.special_instructions) { %>
 					<div class="detail-row">
-						<div class="detail-label">📝 Instructions:</div>
+						<div class="detail-label">
+							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+								<path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+							</svg>
+							Instructions:
+						</div>
 						<div class="detail-value"><%= o.special_instructions %></div>
 					</div>
 				<% } %>
 				<div class="detail-row">
-					<div class="detail-label">📅 Created:</div>
+					<div class="detail-label">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon-clock">
+							<circle cx="12" cy="12" r="10"></circle>
+							<polyline points="12 6 12 12 16 14"></polyline>
+						</svg>
+						Created:
+					</div>
 					<div class="detail-value"><%= dayjs(o.created_at).format('MMM DD, YYYY HH:mm') %></div>
 				</div>
 			</div>
