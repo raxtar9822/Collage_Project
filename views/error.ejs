@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Error <%= status %></title>
+	<link rel="stylesheet" href="/public/css/modern.css">
+	<style>
+		.error-container {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			min-height: 100vh;
+			background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+			padding: 20px;
+		}
+		.error-box {
+			background: white;
+			border-radius: 12px;
+			padding: 40px;
+			text-align: center;
+			box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+			max-width: 500px;
+		}
+		.error-code {
+			font-size: 72px;
+			font-weight: bold;
+			color: #667eea;
+			margin: 0;
+		}
+		.error-message {
+			font-size: 24px;
+			color: #333;
+			margin: 20px 0;
+		}
+		.error-description {
+			color: #666;
+			margin: 15px 0;
+			line-height: 1.6;
+		}
+		.back-button {
+			display: inline-block;
+			margin-top: 20px;
+			padding: 12px 30px;
+			background: #667eea;
+			color: white;
+			text-decoration: none;
+			border-radius: 6px;
+			transition: background 0.3s;
+		}
+		.back-button:hover {
+			background: #764ba2;
+		}
+		.debug-info {
+			background: #f5f5f5;
+			border-radius: 6px;
+			padding: 15px;
+			margin-top: 20px;
+			text-align: left;
+			font-family: monospace;
+			font-size: 12px;
+			max-height: 200px;
+			overflow-y: auto;
+			color: #d32f2f;
+		}
+	</style>
+</head>
+<body>
+	<div class="error-container">
+		<div class="error-box">
+			<h1 class="error-code"><%= status %></h1>
+			<h2 class="error-message">
+				<% if(status === 404) { %>
+					Page Not Found
+				<% } else if(status === 403) { %>
+					Access Denied
+				<% } else if(status === 401) { %>
+					Unauthorized
+				<% } else if(status === 500) { %>
+					Internal Server Error
+				<% } else { %>
+					Error
+				<% } %>
+			</h2>
+			<p class="error-description"><%= message %></p>
+			
+			<% if(typeof error !== 'undefined' && error.stack) { %>
+				<div class="debug-info">
+					<strong>Debug Information:</strong><br>
+					<%= error.stack %>
+				</div>
+			<% } %>
+			
+			<a href="/" class="back-button">Back Home</a>
+		</div>
+	</div>
+</body>
+</html>

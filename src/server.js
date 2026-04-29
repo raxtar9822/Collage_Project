@@ -1008,6 +1008,83 @@ app.post('/api/auth/session/refresh', requireAuth, (req, res) => {
 	});
 });
 
+// 404 handler - Must be before error handler
+app.use((req, res) => {
+	if (req.accepts('json')) {
+		return res.status(404).json({ error: 'Route not found', path: req.path });
+	}
+	res.status(404).render('404', { user: req.session?.user, error: 'Page not found' });
+});
+
+// Global error handler middleware
+app.use((err, req, res, next) => {
+	const status = err.status || err.statusCode || 500;
+	const message = err.message || 'Internal Server Error';
+	const isProduction = process.env.NODE_ENV === 'production';
+	
+	// Log the error with context
+	console.error(`❌ [${new Date().toISOString()}] Error:`, {
+		status,
+		message,
+		url: req.originalUrl,
+		method: req.method,
+		ip: req.ip,
+		user: req.session?.user?.id,
+		stack: isProduction ? undefined : err.stack
+	});
+	
+	// Log to audit trail if user is authenticated
+	if (req.session?.user) {
+		try {
+			logAudit('error', req.session.user.id, 'server_error', message, req.session.user.id);
+		} catch (auditErr) {
+			console.error('Failed to log audit:', auditErr.message);
+		}
+	}
+	
+	// Send appropriate response based on content type
+	if (req.accepts('json')) {
+		return res.status(status).json({
+			success: false,
+			error: isProduction ? 'Internal Server Error' : message,
+			code: err.code || 'INTERNAL_ERROR',
+			...(process.env.DEBUG && { details: err.stack })
+		});
+	}
+	
+	// Render error page for HTML requests
+	res.status(status).render('error', {
+		user: req.session?.user,
+		status,
+		message: isProduction ? 'An error occurred processing your request' : message,
+		error: isProduction ? {} : err
+	}).catch(() => {
+		// Fallback if view doesn't exist
+		res.status(status).send(`
+			<!DOCTYPE html>
+			<html>
+			<head><title>Error ${status}</title></head>
+			<body>
+				<h1>Error ${status}</h1>
+				<p>${isProduction ? 'An error occurred' : message}</p>
+				<a href="/">Back Home</a>
+			</body>
+			</html>
+		`);
+	});
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+	console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+	console.error('❌ Uncaught Exception:', error);
+	process.exit(1);
+});
+
 // Initialize database if using MySQL
 (async () => {
 	if (USE_MYSQL && dbModule.init) {
