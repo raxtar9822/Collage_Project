@@ -27,6 +27,10 @@ const { validatePatient } = require('./validators');
 const USE_MYSQL = process.env.DB_TYPE === 'mysql' || process.env.DB_DRIVER === 'mysql';
 const dbModule = USE_MYSQL ? require('./db-mysql') : require('./db');
 
+console.log(`📌 Using database module: ${USE_MYSQL ? 'MySQL (db-mysql.js)' : 'SQLite (db.js)'}`);
+console.log(`📌 Database config: DB_TYPE=${process.env.DB_TYPE}, DB_DRIVER=${process.env.DB_DRIVER}`);
+console.log(`📌 getUserByUsername type in dbModule: ${typeof dbModule.getUserByUsername}`);
+
 const {
 	createOrder,
 	updateOrderStatus,
@@ -55,6 +59,12 @@ const {
 	getTiffinOrderById,
 	updateTiffinOrderStatus
 } = dbModule;
+
+if (!getUserByUsername || typeof getUserByUsername !== 'function') {
+	console.error(`❌ FATAL: getUserByUsername is not a function! Type: ${typeof getUserByUsername}`);
+	console.error('Available exports:', Object.keys(dbModule));
+	process.exit(1);
+}
 
 const app = express();
 const server = http.createServer(app);
