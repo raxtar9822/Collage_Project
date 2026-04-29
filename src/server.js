@@ -176,98 +176,106 @@ app.get('/login', (req, res) => {
 	res.render('login', { error: null, errorType: null, user: null });
 });
 
-app.post('/login/mess', authRateLimit, async (req, res) => {
-	const { username, password } = req.body;
-	const user = await getUserByUsername(username);
-	
-	// Check if user exists and has mess owner role
-	if (!user || user.role !== 'admin') {
-		logAuthEvent('login_failed', null, { username, reason: 'invalid_role', userType: 'mess' }, req.ip);
-		return res.status(401).render('login', { 
-			error: 'Invalid credentials or insufficient privileges for mess owner', 
-			errorType: 'mess', 
-			user: null 
-		});
+app.post('/login/mess', authRateLimit, async (req, res, next) => {
+	try {
+		const { username, password } = req.body;
+		const user = await getUserByUsername(username);
+		
+		// Check if user exists and has mess owner role
+		if (!user || user.role !== 'admin') {
+			logAuthEvent('login_failed', null, { username, reason: 'invalid_role', userType: 'mess' }, req.ip);
+			return res.status(401).render('login', { 
+				error: 'Invalid credentials or insufficient privileges for mess owner', 
+				errorType: 'mess', 
+				user: null 
+			});
+		}
+		
+		// Add this check to prevent bcrypt error if password_hash is missing
+		if (!user.password_hash) {
+			logAuthEvent('login_failed', user.id, { username, reason: 'missing_password_hash', userType: 'mess' }, req.ip);
+			return res.status(401).render('login', { 
+				error: 'Invalid credentials or insufficient privileges for mess owner', 
+				errorType: 'mess', 
+				user: null 
+			});
+		}
+		
+		if (!bcrypt.compareSync(password, user.password_hash)) {
+			logAuthEvent('login_failed', user.id, { username, reason: 'invalid_password', userType: 'mess' }, req.ip);
+			return res.status(401).render('login', { 
+				error: 'Invalid credentials', 
+				errorType: 'mess', 
+				user: null 
+			});
+		}
+		
+		const userSession = { 
+			id: user.id, 
+			username: user.username, 
+			role: user.role, 
+			full_name: user.full_name,
+			userType: 'mess_owner'
+		};
+		
+		// Generate JWT token
+		const token = generateToken(userSession);
+		
+		req.session.user = userSession;
+		req.session.jwtToken = token; // Store JWT in session for web interface
+		req.session.timestamp = Date.now(); // Add timestamp for session management
+		
+		logAuthEvent('login_success', user.id, { username, userType: 'mess' }, req.ip);
+		res.redirect('/dashboard');
+	} catch (error) {
+		next(error);
 	}
-	
-	// Add this check to prevent bcrypt error if password_hash is missing
-	if (!user.password_hash) {
-		logAuthEvent('login_failed', user.id, { username, reason: 'missing_password_hash', userType: 'mess' }, req.ip);
-		return res.status(401).render('login', { 
-			error: 'Invalid credentials or insufficient privileges for mess owner', 
-			errorType: 'mess', 
-			user: null 
-		});
-	}
-	
-	if (!bcrypt.compareSync(password, user.password_hash)) {
-		logAuthEvent('login_failed', user.id, { username, reason: 'invalid_password', userType: 'mess' }, req.ip);
-		return res.status(401).render('login', { 
-			error: 'Invalid credentials', 
-			errorType: 'mess', 
-			user: null 
-		});
-	}
-	
-	const userSession = { 
-		id: user.id, 
-		username: user.username, 
-		role: user.role, 
-		full_name: user.full_name,
-		userType: 'mess_owner'
-	};
-	
-	// Generate JWT token
-	const token = generateToken(userSession);
-	
-	req.session.user = userSession;
-	req.session.jwtToken = token; // Store JWT in session for web interface
-	req.session.timestamp = Date.now(); // Add timestamp for session management
-	
-	logAuthEvent('login_success', user.id, { username, userType: 'mess' }, req.ip);
-	res.redirect('/dashboard');
 });
 
-app.post('/login/hospital', authRateLimit, async (req, res) => {
-	const { username, password } = req.body;
-	const user = await getUserByUsername(username);
-	
-	// Check if user exists and has hospital role (nurse, kitchen, delivery, receptionist)
-	if (!user || !['nurse', 'kitchen', 'delivery', 'receptionist'].includes(user.role)) {
-		logAuthEvent('login_failed', null, { username, reason: 'invalid_role', userType: 'hospital' }, req.ip);
-		return res.status(401).render('login', { 
-			error: 'Invalid credentials or insufficient privileges for hospital access', 
-			errorType: 'hospital', 
-			user: null 
-		});
+app.post('/login/hospital', authRateLimit, async (req, res, next) => {
+	try {
+		const { username, password } = req.body;
+		const user = await getUserByUsername(username);
+		
+		// Check if user exists and has hospital role (nurse, kitchen, delivery, receptionist)
+		if (!user || !['nurse', 'kitchen', 'delivery', 'receptionist'].includes(user.role)) {
+			logAuthEvent('login_failed', null, { username, reason: 'invalid_role', userType: 'hospital' }, req.ip);
+			return res.status(401).render('login', { 
+				error: 'Invalid credentials or insufficient privileges for hospital access', 
+				errorType: 'hospital', 
+				user: null 
+			});
+		}
+		
+		if (!bcrypt.compareSync(password, user.password_hash)) {
+			logAuthEvent('login_failed', user.id, { username, reason: 'invalid_password', userType: 'hospital' }, req.ip);
+			return res.status(401).render('login', { 
+				error: 'Invalid credentials', 
+				errorType: 'hospital', 
+				user: null 
+			});
+		}
+		
+		const userSession = { 
+			id: user.id, 
+			username: user.username, 
+			role: user.role, 
+			full_name: user.full_name,
+			userType: user.role === 'receptionist' ? 'receptionist' : 'hospital'
+		};
+		
+		// Generate JWT token
+		const token = generateToken(userSession);
+		
+		req.session.user = userSession;
+		req.session.jwtToken = token; // Store JWT in session for web interface
+		req.session.timestamp = Date.now(); // Add timestamp for session management
+		
+		logAuthEvent('login_success', user.id, { username, userType: 'hospital' }, req.ip);
+		res.redirect('/dashboard');
+	} catch (error) {
+		next(error);
 	}
-	
-	if (!bcrypt.compareSync(password, user.password_hash)) {
-		logAuthEvent('login_failed', user.id, { username, reason: 'invalid_password', userType: 'hospital' }, req.ip);
-		return res.status(401).render('login', { 
-			error: 'Invalid credentials', 
-			errorType: 'hospital', 
-			user: null 
-		});
-	}
-	
-	const userSession = { 
-		id: user.id, 
-		username: user.username, 
-		role: user.role, 
-		full_name: user.full_name,
-		userType: user.role === 'receptionist' ? 'receptionist' : 'hospital'
-	};
-	
-	// Generate JWT token
-	const token = generateToken(userSession);
-	
-	req.session.user = userSession;
-	req.session.jwtToken = token; // Store JWT in session for web interface
-	req.session.timestamp = Date.now(); // Add timestamp for session management
-	
-	logAuthEvent('login_success', user.id, { username, userType: 'hospital' }, req.ip);
-	res.redirect('/dashboard');
 });
 
 app.post('/logout', requireAuth, (req, res) => {
@@ -275,39 +283,43 @@ app.post('/logout', requireAuth, (req, res) => {
 	req.session.destroy(() => res.redirect('/login'));
 });
 
-app.get('/dashboard', requireAuth, async (req, res) => {
-	const role = req.session.user.role;
-	
-	if (role === 'receptionist') {
-		// Show tiffin orders for receptionist
-		const filter = {
-			status: req.query.status || null,
-			ward: req.query.ward || null,
-			orderDate: req.query.orderDate || null
-		};
-		const tiffinOrders = await getTiffinOrders(filter);
-		return res.render('receptionist_dashboard', {
+app.get('/dashboard', requireAuth, async (req, res, next) => {
+	try {
+		const role = req.session.user.role;
+		
+		if (role === 'receptionist') {
+			// Show tiffin orders for receptionist
+			const filter = {
+				status: req.query.status || null,
+				ward: req.query.ward || null,
+				orderDate: req.query.orderDate || null
+			};
+			const tiffinOrders = await getTiffinOrders(filter);
+			return res.render('receptionist_dashboard', {
+				user: req.session.user,
+				orders: tiffinOrders,
+				dayjs,
+				filter: {
+					status: filter.status,
+					ward: filter.ward,
+					orderDate: filter.orderDate
+				}
+			});
+		}
+		
+		// Regular dashboard for other roles
+		const filter = {};
+		if (role === 'kitchen') filter.status = 'placed';
+		if (role === 'delivery') filter.status = 'out_for_delivery';
+		const orders = await getOrders(filter);
+		res.render('dashboard', {
 			user: req.session.user,
-			orders: tiffinOrders,
-			dayjs,
-			filter: {
-				status: filter.status,
-				ward: filter.ward,
-				orderDate: filter.orderDate
-			}
+			orders,
+			dayjs
 		});
+	} catch (error) {
+		next(error);
 	}
-	
-	// Regular dashboard for other roles
-	const filter = {};
-	if (role === 'kitchen') filter.status = 'placed';
-	if (role === 'delivery') filter.status = 'out_for_delivery';
-	const orders = await getOrders(filter);
-	res.render('dashboard', {
-		user: req.session.user,
-		orders,
-		dayjs
-	});
 });
 
 // Admin: Patient Management
